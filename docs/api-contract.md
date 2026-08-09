@@ -14,6 +14,24 @@ Infrastructure and documentation endpoints do not use the business prefix:
 - `/v3/api-docs`
 - `/swagger-ui/`
 
+## Authentication
+
+All `/api/v1/**` operations require a Keycloak access token sent as:
+
+```http
+Authorization: Bearer <access-token>
+```
+
+Spring Security validates the signature, temporal claims, `poultryflow` realm issuer, and `poultryflow-api` audience. ID tokens are not accepted as API credentials. Role-based authorization is deferred to US-006; US-005 enforces authenticated versus unauthenticated access only.
+
+The reusable OpenAPI security scheme is `BearerAuth`, represented as HTTP Bearer with JWT format. A contract customizer applies it to documented `/api/v1/**` operations without marking the public infrastructure and documentation routes as protected.
+
+These endpoints remain public:
+
+- `/actuator/health`
+- `/v3/api-docs` and `/v3/api-docs/**`
+- `/swagger-ui.html` and `/swagger-ui/**`
+
 ## Versioning
 
 The URI segment is the major API version. Additive, backward-compatible fields and operations may be introduced within v1. Breaking changes must be documented before implementation and normally require a new major prefix such as `/api/v2`.
@@ -41,7 +59,9 @@ Errors follow Spring's RFC 9457 `ProblemDetail` model rather than a separate pro
 
 Each validation violation contains `field` and `message`. Responses must never expose stack traces, Java exception names, database details, credentials, or other sensitive internals.
 
-RFC 9457 permits its standard members to be omitted or defaulted, so the reusable schema requires only the fields PoultryFlow guarantees for every handled problem: `status` and `code`. The runtime handler uses `VALIDATION_FAILED` for validation errors and preserves that specific code. Other inherited Spring MVC ProblemDetail responses receive the safe `HTTP_ERROR` fallback when no code is already present. Domain-specific error codes belong to future module stories.
+RFC 9457 permits its standard members to be omitted or defaulted, so the reusable schema requires only the fields PoultryFlow guarantees for every handled problem: `status` and `code`. The runtime handler uses `VALIDATION_FAILED` for validation errors and preserves that specific code. Other inherited Spring MVC ProblemDetail responses receive the safe `HTTP_ERROR` fallback when no code is already present.
+
+An unauthenticated request to `/api/v1/**` receives HTTP 401, `application/problem+json`, `WWW-Authenticate: Bearer`, and the stable code `AUTHENTICATION_REQUIRED`. The response uses a fixed client-safe detail and never exposes the underlying Spring Security or OIDC exception. Domain-specific error codes belong to future module stories.
 
 ## Idempotency
 
@@ -67,6 +87,7 @@ The generated document publishes these reusable components for future module con
 - `ValidationViolation`: structured invalid field and reason.
 - `IdempotencyKey`: reusable `Idempotency-Key` header parameter.
 - `ProblemResponse`: reusable `application/problem+json` response.
+- `BearerAuth`: reusable HTTP Bearer JWT security scheme for business operations.
 
 Future operations should reference these components rather than duplicate their definitions.
 

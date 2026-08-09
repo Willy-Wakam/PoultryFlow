@@ -7,7 +7,7 @@ PoultryFlow uses Docker Compose to provide PostgreSQL and Keycloak for local dev
 | Service | Image | Purpose | Host ports |
 | --- | --- | --- | --- |
 | PostgreSQL | `postgres:18.4` | Persists the future PoultryFlow application database and Keycloak database | `5432` by default |
-| Keycloak | `quay.io/keycloak/keycloak:26.7.0` | Runs the development identity server without configuring PoultryFlow authentication | `8081` application, `9001` management by default |
+| Keycloak | `quay.io/keycloak/keycloak:26.7.0` | Runs the development identity server with the imported PoultryFlow realm | `8081` application, `9001` management by default |
 
 Image versions are pinned so that every developer runs the same service versions. Update them deliberately and verify persistence and health checks before merging an upgrade.
 
@@ -20,7 +20,22 @@ One PostgreSQL container keeps local operations simple while maintaining logical
 - `infrastructure/postgres/init/01-create-keycloak-database.sh` creates the Keycloak role and database only when the PostgreSQL volume is initialized for the first time.
 - The Compose-managed `postgres_data` volume stores both databases. Keycloak does not use its embedded development database.
 
-The current Spring Boot application does not connect to PostgreSQL or Keycloak yet. Datasource configuration, migrations, realms, clients, roles, and token validation belong to later stories.
+The Spring Boot application remains independent from PostgreSQL but validates Keycloak access tokens when protected API routes are called. Application datasource configuration and migrations remain deferred.
+
+## PoultryFlow realm import
+
+`infrastructure/keycloak/poultryflow-realm.json` is mounted read-only into `/opt/keycloak/data/import/`. Keycloak starts with `--import-realm` and creates the enabled `poultryflow` development realm when it is absent.
+
+The imported realm defines:
+
+- `poultryflow-web`, a public browser client using Standard Authorization Code Flow with PKCE S256;
+- exact localhost redirect URIs and the `http://localhost:5173` web origin;
+- `poultryflow-api`, a bearer-only logical API audience;
+- an audience mapper that adds `poultryflow-api` to frontend access tokens.
+
+It does not contain users, passwords, PoultryFlow roles, client secrets, or production configuration.
+
+Keycloak startup import skips a realm that already exists. This preserves local state during ordinary restarts, but it also means changes to the committed JSON are not applied automatically to an existing local `poultryflow` realm.
 
 ## Environment configuration
 
@@ -54,7 +69,7 @@ From the repository root:
 
 ```bash
 docker compose config
-docker compose up -d
+docker compose up -d --wait
 docker compose ps
 ```
 
@@ -91,7 +106,7 @@ The following command permanently deletes both local databases, including all Po
 docker compose down --volumes
 ```
 
-Use it only when a clean local database is required. Database names, owners, and passwords from `.env` are applied during first initialization; changing those values for an existing volume does not recreate users or databases automatically.
+Use it only when a clean local database is required or the development realm must be recreated from the committed import. Database names, owners, passwords, and realm configuration are applied during first initialization; changing them for an existing volume does not recreate users, databases, or the realm automatically.
 
 ## Troubleshooting
 

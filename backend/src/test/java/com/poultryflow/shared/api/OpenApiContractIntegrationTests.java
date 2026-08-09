@@ -11,12 +11,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.WebApplicationContext;
 
-@SpringBootTest
+@SpringBootTest(classes = {
+        com.poultryflow.PoultryFlowApplication.class,
+        OpenApiContractIntegrationTests.OpenApiTestConfiguration.class
+})
 class OpenApiContractIntegrationTests {
 
     @Autowired
@@ -55,6 +62,32 @@ class OpenApiContractIntegrationTests {
                         .value(containsString("UUID")))
                 .andExpect(jsonPath(
                                 "$.components.responses.ProblemResponse.content['application/problem+json'].schema['$ref']")
-                        .value("#/components/schemas/ProblemDetail"));
+                        .value("#/components/schemas/ProblemDetail"))
+                .andExpect(jsonPath("$.components.securitySchemes.BearerAuth.type")
+                        .value("http"))
+                .andExpect(jsonPath("$.components.securitySchemes.BearerAuth.scheme")
+                        .value("bearer"))
+                .andExpect(jsonPath("$.components.securitySchemes.BearerAuth.bearerFormat")
+                        .value("JWT"))
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/test/openapi'].get.security[0].BearerAuth")
+                        .isArray());
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class OpenApiTestConfiguration {
+
+        @Bean
+        OpenApiTestController openApiTestController() {
+            return new OpenApiTestController();
+        }
+    }
+
+    @RestController
+    static class OpenApiTestController {
+
+        @GetMapping("/api/v1/test/openapi")
+        void documentedBusinessOperation() {
+        }
     }
 }

@@ -4,7 +4,7 @@ PoultryFlow is a web-based poultry farm management platform for a farm in Camero
 
 ## Project status
 
-PoultryFlow is in its MVP foundation phase. The repository contains runnable backend and frontend skeletons, documented modular-monolith boundaries, and a Docker Compose local development stack with PostgreSQL and Keycloak. Authentication integration, business features, offline synchronization, and production deployment automation have not been implemented yet.
+PoultryFlow is in its MVP foundation phase. The repository contains runnable backend and frontend applications, documented modular-monolith boundaries, a Docker Compose local development stack, and Keycloak/OIDC authentication. Role-based authorization, business features, offline synchronization, and production deployment automation have not been implemented yet.
 
 IoT integrations are explicitly out of scope.
 
@@ -12,14 +12,14 @@ IoT integrations are explicitly out of scope.
 
 PoultryFlow is a monorepo containing a React web application and a Spring Boot REST API. The backend is organized as a modular monolith: business capabilities have explicit package boundaries but are built and deployed as one application for the MVP.
 
-The frontend uses the backend Actuator health endpoint as a development smoke check. Vite proxies `/actuator` requests to Spring Boot, so no application-wide CORS policy is needed for this initial local workflow.
+The frontend uses the backend Actuator health endpoint as a development smoke check and delegates sign-in to Keycloak using Authorization Code Flow with PKCE. The backend validates access tokens as a stateless OAuth2 Resource Server. Vite proxies `/actuator` and `/api` requests to Spring Boot, so no broad development CORS policy is needed.
 
-See [docs/architecture.md](docs/architecture.md) for module ownership and dependency rules, [docs/api-contract.md](docs/api-contract.md) for REST contract conventions, and [infrastructure/README.md](infrastructure/README.md) for local service details.
+See [docs/architecture.md](docs/architecture.md) for module ownership and dependency rules, [docs/api-contract.md](docs/api-contract.md) for REST contract conventions, [docs/authentication.md](docs/authentication.md) for the authentication design and workflow, and [infrastructure/README.md](infrastructure/README.md) for local service details.
 
 ## Technology stack
 
-- Frontend: React, TypeScript, Vite
-- Backend: Java 21, Spring Boot, Maven, Spring Web, Bean Validation, Actuator, Springdoc/OpenAPI
+- Frontend: React, TypeScript, Vite, Keycloak JS
+- Backend: Java 21, Spring Boot, Maven, Spring Web, Spring Security Resource Server, Bean Validation, Actuator, Springdoc/OpenAPI
 - Local infrastructure: Docker Compose, PostgreSQL 18.4, Keycloak 26.7.0
 - CI: GitHub Actions quality gates for backend, frontend, and infrastructure
 - Architecture: modular monolith and REST APIs
@@ -56,14 +56,15 @@ Create the ignored local environment file:
 
 ```bash
 cp .env.example .env
+cp frontend/.env.example frontend/.env
 ```
 
 The committed values are safe examples for local development only. Do not reuse them in production.
 
-Start and inspect PostgreSQL and Keycloak:
+Start PostgreSQL and Keycloak and wait for their health checks:
 
 ```bash
-docker compose up -d
+docker compose up -d --wait
 docker compose ps
 ```
 
@@ -77,7 +78,9 @@ Local ports are:
 | Keycloak health | `http://localhost:9001/health/ready` |
 | PostgreSQL | `localhost:5432` |
 
-The host ports for PostgreSQL and Keycloak can be changed in `.env`. The current backend does not connect to either service yet; the Compose stack prepares those dependencies for later stories without adding persistence or authentication behavior.
+The host ports for PostgreSQL and Keycloak can be changed in `.env`. The backend does not connect to PostgreSQL yet. It uses Keycloak's public issuer and JWK metadata only when validating bearer access tokens, so backend startup and automated tests do not require a running identity server.
+
+Keycloak imports the `poultryflow` realm on first startup. Open `http://localhost:8081/admin/`, use the local bootstrap administrator configured in `.env`, select the `poultryflow` realm, and create a local development user. Set a local password without adding that user or credential to repository files. See [docs/authentication.md](docs/authentication.md) for the exact flow and realm-reset warning.
 
 ## Run the backend
 
@@ -101,7 +104,7 @@ With the backend running, access:
 - Generated OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 
-MVP business endpoints use the `/api/v1` prefix. See [docs/api-contract.md](docs/api-contract.md) for versioning, ProblemDetail errors, the `Idempotency-Key` convention, and contract-evolution rules.
+MVP business endpoints use the `/api/v1` prefix and require a Keycloak access token with the `poultryflow-api` audience. See [docs/api-contract.md](docs/api-contract.md) for Bearer authentication, versioning, ProblemDetail errors, the `Idempotency-Key` convention, and contract-evolution rules.
 
 ## Run the frontend
 
@@ -109,11 +112,11 @@ Start the backend first, then use a second terminal:
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173`. The page displays the backend health reported through the Vite development proxy. If the backend is stopped, the page reports that it is unavailable without failing to render.
+Open `http://localhost:5173`. The page displays the backend health and a **Sign in** action. Sign-in redirects to Keycloak; PoultryFlow never renders or stores a password. After authentication, the page shows the local username and a **Sign out** action that initiates Keycloak logout and returns to the frontend.
 
 ## Stop local infrastructure
 
@@ -137,6 +140,7 @@ Validate the local infrastructure configuration:
 
 ```bash
 docker compose --env-file .env.example config --quiet
+jq empty infrastructure/keycloak/poultryflow-realm.json
 bash -n infrastructure/postgres/init/01-create-keycloak-database.sh
 ```
 
@@ -157,6 +161,7 @@ npm ci
 npm run typecheck
 npm run lint
 npm run format:check
+npm run test
 npm run build
 ```
 
@@ -167,8 +172,8 @@ Use `npm run format` from `frontend/` to apply the configured frontend formattin
 GitHub Actions runs on pull requests targeting `dev` or `main` and on direct pushes to those branches. The workflows expose these checks:
 
 - `Backend CI / Backend quality gates`: Java 21 compilation, tests, and Maven verification.
-- `Frontend CI / Frontend quality gates`: deterministic dependency installation, TypeScript checking, ESLint, Prettier verification, and the Vite production build on Node.js 22.
-- `Infrastructure CI / Infrastructure quality gates`: static Docker Compose validation and shell syntax validation.
+- `Frontend CI / Frontend quality gates`: deterministic dependency installation, TypeScript checking, ESLint, Prettier verification, authentication tests, and the Vite production build on Node.js 22.
+- `Infrastructure CI / Infrastructure quality gates`: static Docker Compose, Keycloak realm JSON, and shell syntax validation.
 
 The active repository ruleset requires changes to `dev` and `main` to arrive through a pull request. All three quality gates must pass against an up-to-date target branch before merge; no human approval is required.
 

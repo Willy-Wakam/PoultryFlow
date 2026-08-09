@@ -11,8 +11,10 @@ public final class ApiContract {
     public static final String PROBLEM_DETAIL_SCHEMA = "ProblemDetail";
     public static final String VALIDATION_VIOLATION_SCHEMA = "ValidationViolation";
     public static final String PROBLEM_RESPONSE = "ProblemResponse";
+    public static final String BEARER_AUTH_SCHEME = "BearerAuth";
     public static final String VALIDATION_FAILED_CODE = "VALIDATION_FAILED";
     public static final String HTTP_ERROR_CODE = "HTTP_ERROR";
+    public static final String AUTHENTICATION_REQUIRED_CODE = "AUTHENTICATION_REQUIRED";
 
     public static final String IDEMPOTENCY_KEY_PARAMETER_REF =
             "#/components/parameters/" + IDEMPOTENCY_KEY_PARAMETER;

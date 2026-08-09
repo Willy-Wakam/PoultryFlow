@@ -27,5 +27,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate Docker Compose configuration
         run: docker compose --env-file .env.example config --quiet
+      - name: Validate Keycloak realm configuration
+        run: jq empty infrastructure/keycloak/poultryflow-realm.json
       - name: Validate infrastructure shell syntax
         run: bash -n infrastructure/postgres/init/01-create-keycloak-database.sh
