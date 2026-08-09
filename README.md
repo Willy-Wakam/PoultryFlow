@@ -161,7 +161,7 @@ GitHub Actions runs on pull requests targeting `dev` or `main` and on direct pus
 - `Frontend CI / Frontend quality gates`: deterministic dependency installation, TypeScript checking, ESLint, Prettier verification, and the Vite production build on Node.js 22.
 - `Infrastructure CI / Infrastructure quality gates`: static Docker Compose validation and shell syntax validation.
 
-Pull requests are not considered ready for merge while a quality gate is failing. Repository branch protection is configured separately; these workflows only provide the status checks that branch rules can require.
+The active repository ruleset requires changes to `dev` and `main` to arrive through a pull request. All three quality gates must pass against an up-to-date target branch before merge; no human approval is required.
 
 ## Development and production
 
