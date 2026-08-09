@@ -116,7 +116,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173`. The page displays the backend health and a **Sign in** action. Sign-in redirects to Keycloak; PoultryFlow never renders or stores a password. After authentication, the page shows the local username and a **Sign out** action that initiates Keycloak logout and returns to the frontend.
+Open `http://localhost:5173`. The page displays the backend health plus **Sign in** and **Forgot password?** actions. Both redirect to Keycloak; PoultryFlow never renders or stores a password. Password recovery requires an SMTP provider configured in Keycloak, which the normal development Compose stack intentionally does not include. After authentication, the page shows the local username and a **Sign out** action that initiates Keycloak logout and returns to the frontend.
 
 ## Stop local infrastructure
 

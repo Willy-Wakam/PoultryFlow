@@ -50,6 +50,14 @@ Its only web origin is `http://localhost:5173`. Wildcard redirects and origins a
 
 The adapter is initialized once through a cached promise before authenticated application state is used. This also makes initialization safe when React StrictMode invokes development effects more than once.
 
+## Credential recovery
+
+Credential recovery remains entirely within Keycloak. While unauthenticated, PoultryFlow displays **Forgot password?** next to **Sign in** and delegates the action to Keycloak's Reset credentials flow. PoultryFlow does not collect usernames, email addresses, or passwords for recovery and has no password-reset API.
+
+The frontend asks `keycloak-js` to generate a normal login URL with the existing application redirect. It parses that URL, verifies that its path ends in `/auth`, and replaces only that final segment with `/forgot-credentials`. The state, nonce, client ID, redirect URI, and PKCE parameters generated and retained by the adapter remain unchanged, so a completed reset and login returns through the normal OIDC callback.
+
+PoultryFlow never indicates whether an account exists and never renders raw Keycloak errors. URL-generation or redirect failures produce the same generic authentication error used by sign-in. Keycloak owns all reset-screen and account-enumeration-resistant messaging.
+
 ## Token policy
 
 Access, refresh, and ID tokens remain inside the Keycloak adapter in browser memory. PoultryFlow does not persist them in localStorage, sessionStorage, IndexedDB, cookies, or application state, and does not log or render them. The frontend exposes only the allowlisted `poultryflow-api` roles as typed in-memory authentication state.
@@ -106,6 +114,8 @@ An authenticated request that fails a role policy produces HTTP 403 with `applic
 
 The development realm is stored in `infrastructure/keycloak/poultryflow-realm.json` and mounted read-only into Keycloak's `/opt/keycloak/data/import/` directory. `docker compose up -d` starts Keycloak with `--import-realm`. The import defines the five `poultryflow-api` client roles but contains no users, passwords, role assignments, or client secrets.
 
+The realm enables Keycloak's Reset credentials flow but intentionally contains no SMTP server or credentials. Keycloak requires a separately configured SMTP provider to deliver time-limited reset links. Local Compose does not include a permanent email catcher; production SMTP settings and secrets belong to deployment configuration. PoultryFlow never emails passwords, and SMS recovery is not configured for the MVP.
+
 Startup import creates the `poultryflow` realm only when it does not already exist. Keycloak skips an existing realm so that normal restarts preserve local users, sessions, and configuration. Editing the committed JSON does not overwrite an existing local realm.
 
 To recreate the realm from the committed import, a developer may run:
@@ -129,6 +139,7 @@ The first command is destructive: it permanently deletes all local PoultryFlow a
 8. Start the frontend from `frontend/` with `npm run dev`.
 9. Open `http://localhost:5173` and select **Sign in**. Credentials are entered only on the Keycloak-hosted page.
 10. Select **Sign out** to clear PoultryFlow's in-memory state, initiate Keycloak logout, and return to the frontend.
+11. While signed out, select **Forgot password?** to open Keycloak's Reset credentials screen. Email delivery works only after an SMTP provider is configured directly in Keycloak for the current environment.
 
 If a persisted local realm predates US-006, startup import will not add the roles to it. Add the exact five client roles under **Clients > poultryflow-api > Roles**, or use the documented destructive reset only when all local data is disposable.
 
@@ -136,11 +147,10 @@ Keycloak's discovery document is available at `http://localhost:8081/realms/poul
 
 ## Offline impact
 
-Authentication requires network access to Keycloak. PoultryFlow does not cache credentials or tokens to provide offline login. Future offline workflows may define access to previously authorized local business data, but US-005 does not implement offline authentication or synchronization.
+Authentication and credential recovery require network access to Keycloak. Recovery also requires access to the configured email provider and has no offline mode. PoultryFlow does not cache credentials or tokens to provide offline login. Future offline workflows may define access to previously authorized local business data, but they do not include offline authentication, recovery, or synchronization in US-007.
 
 ## Deferred security work
 
 - A future farm-management story must constrain farm-scoped access with `FarmMembership`; coarse roles alone are insufficient.
 - The audit epic owns durable storage and querying of authorization-denied events.
-- US-007 owns credential recovery behavior.
 - US-008 owns advanced secure session lifecycle and timeout policies.

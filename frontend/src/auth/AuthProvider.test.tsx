@@ -11,6 +11,7 @@ const keycloakClient = vi.hoisted(() => ({
   username: vi.fn(),
   roles: vi.fn(),
   login: vi.fn(),
+  recoverCredentials: vi.fn(),
   logout: vi.fn(),
   refreshToken: vi.fn(),
   clearToken: vi.fn(),
@@ -40,6 +41,7 @@ describe('PoultryFlow authentication', () => {
     keycloakClient.isAuthenticated.mockReturnValue(false)
     keycloakClient.roles.mockReturnValue([])
     keycloakClient.login.mockResolvedValue(undefined)
+    keycloakClient.recoverCredentials.mockResolvedValue(undefined)
     keycloakClient.logout.mockResolvedValue(undefined)
     keycloakClient.refreshToken.mockResolvedValue(false)
   })
@@ -50,6 +52,9 @@ describe('PoultryFlow authentication', () => {
     expect(
       await screen.findByRole('button', { name: 'Sign in' }),
     ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Forgot password?' }),
+    ).toBeInTheDocument()
   })
 
   it('delegates Sign in to Keycloak', async () => {
@@ -58,6 +63,16 @@ describe('PoultryFlow authentication', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Sign in' }))
 
     expect(keycloakClient.login).toHaveBeenCalledOnce()
+  })
+
+  it('delegates credential recovery to Keycloak', async () => {
+    render(<AuthenticationPanel />, { wrapper: AuthenticationUnderTest })
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Forgot password?' }),
+    )
+
+    expect(keycloakClient.recoverCredentials).toHaveBeenCalledOnce()
   })
 
   it('shows authenticated identity and delegates Sign out to Keycloak', async () => {
@@ -82,10 +97,29 @@ describe('PoultryFlow authentication', () => {
     render(<AuthenticationPanel />, { wrapper: AuthenticationUnderTest })
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Sign-in could not be completed. Please try again.',
+      'Authentication could not be completed. Please try again.',
     )
     expect(
       screen.queryByText('sensitive identity-provider detail'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows only a safe generic message when recovery fails', async () => {
+    keycloakClient.recoverCredentials.mockRejectedValue(
+      new Error('sensitive identity-provider recovery detail'),
+    )
+
+    render(<AuthenticationPanel />, { wrapper: AuthenticationUnderTest })
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Forgot password?' }),
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Authentication could not be completed. Please try again.',
+    )
+    expect(
+      screen.queryByText('sensitive identity-provider recovery detail'),
     ).not.toBeInTheDocument()
   })
 
@@ -120,7 +154,7 @@ describe('PoultryFlow authentication', () => {
 
     await waitFor(() => expect(keycloakClient.clearToken).toHaveBeenCalled())
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Sign-in could not be completed. Please try again.',
+      'Authentication could not be completed. Please try again.',
     )
   })
 })

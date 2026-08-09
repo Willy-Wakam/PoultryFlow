@@ -125,6 +125,22 @@ h1 {
   font-weight: 700;
 }
 
+.authentication-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.authentication-panel button.authentication-secondary {
+  border-color: #6b776e;
+  background: #ffffff;
+  color: #174a31;
+}
+
+.authentication-panel button.authentication-secondary:hover {
+  background: #eaf0eb;
+}
+
 .authentication-panel button:hover {
   background: #174a31;
 }
@@ -196,5 +212,9 @@ h1 {
   .authentication-panel {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .authentication-actions {
+    flex-wrap: wrap;
   }
 }

@@ -11,6 +11,7 @@ export type AuthenticationContextValue = {
   hasRole: (role: PoultryFlowRole) => boolean
   hasAnyRole: (roles: readonly PoultryFlowRole[]) => boolean
   login: () => Promise<void>
+  recoverCredentials: () => Promise<void>
   logout: () => Promise<void>
 }
 

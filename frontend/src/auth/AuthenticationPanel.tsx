@@ -1,7 +1,7 @@
 import { useAuth } from './useAuth'
 
 const genericAuthenticationError =
-  'Sign-in could not be completed. Please try again.'
+  'Authentication could not be completed. Please try again.'
 
 export function AuthenticationPanel() {
   const authentication = useAuth()
@@ -35,11 +35,20 @@ export function AuthenticationPanel() {
           {genericAuthenticationError}
         </p>
       ) : (
-        <p>Sign in through PoultryFlow's secure identity service.</p>
+        <p>Continue in the identity service to sign in or recover access.</p>
       )}
-      <button type="button" onClick={() => void authentication.login()}>
-        Sign in
-      </button>
+      <div className="authentication-actions">
+        <button type="button" onClick={() => void authentication.login()}>
+          Sign in
+        </button>
+        <button
+          className="authentication-secondary"
+          type="button"
+          onClick={() => void authentication.recoverCredentials()}
+        >
+          Forgot password?
+        </button>
+      </div>
     </div>
   )
 }

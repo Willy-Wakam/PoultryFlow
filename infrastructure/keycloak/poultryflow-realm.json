@@ -2,7 +2,7 @@
   "realm": "poultryflow",
   "enabled": true,
   "registrationAllowed": false,
-  "resetPasswordAllowed": false,
+  "resetPasswordAllowed": true,
   "rememberMe": false,
   "roles": {
     "client": {
