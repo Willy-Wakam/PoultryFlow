@@ -33,11 +33,14 @@ jobs:
         run: |
           jq --exit-status '
             [.clients[] | select(.clientId == "poultryflow-web")] as $web
+            | [.clients[] | select(.clientId == "poultryflow-api")] as $api
             | [
                 $web[0].protocolMappers[]
                 | select(.protocolMapper == "oidc-audience-mapper")
               ] as $audienceMappers
+            | (.roles.client["poultryflow-api"] // []) as $apiRoles
             | ($web | length) == 1
+              and ($api | length) == 1
               and ($web[0].publicClient == true)
               and ($web[0].standardFlowEnabled == true)
               and ($web[0].implicitFlowEnabled == false)
@@ -51,6 +54,14 @@ jobs:
               and ($audienceMappers[0].config["access.token.claim"] == "true")
               and ($audienceMappers[0].config["id.token.claim"] == "false")
               and (($audienceMappers[0].config["userinfo.token.claim"] // "false") == "false")
+              and ([$apiRoles[].name] | sort) == [
+                "ACCOUNTANT",
+                "MANAGER",
+                "OWNER",
+                "STAFF",
+                "VIEWER"
+              ]
+              and (all($apiRoles[]; (.composite // false) == false))
           ' infrastructure/keycloak/poultryflow-realm.json
       - name: Validate infrastructure shell syntax
         run: bash -n infrastructure/postgres/init/01-create-keycloak-database.sh

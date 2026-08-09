@@ -15,6 +15,7 @@ public final class ApiContract {
     public static final String VALIDATION_FAILED_CODE = "VALIDATION_FAILED";
     public static final String HTTP_ERROR_CODE = "HTTP_ERROR";
     public static final String AUTHENTICATION_REQUIRED_CODE = "AUTHENTICATION_REQUIRED";
+    public static final String AUTHORIZATION_DENIED_CODE = "AUTHORIZATION_DENIED";
 
     public static final String IDEMPOTENCY_KEY_PARAMETER_REF =
             "#/components/parameters/" + IDEMPOTENCY_KEY_PARAMETER;

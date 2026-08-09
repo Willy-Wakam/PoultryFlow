@@ -3,12 +3,14 @@ package com.poultryflow.identity.security;
 import com.poultryflow.shared.api.ApiContract;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration(proxyBeanMethods = false)
+@EnableMethodSecurity
 public class SecurityConfiguration {
 
     private static final String[] PUBLIC_ENDPOINTS = {
@@ -22,7 +24,9 @@ public class SecurityConfiguration {
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            AuthenticationProblemEntryPoint authenticationProblemEntryPoint)
+            AuthenticationProblemEntryPoint authenticationProblemEntryPoint,
+            AuthorizationDeniedProblemHandler authorizationDeniedProblemHandler,
+            JwtAuthenticationConverter jwtAuthenticationConverter)
             throws Exception {
         http.authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
@@ -32,10 +36,21 @@ public class SecurityConfiguration {
                         ApiContract.BUSINESS_API_BASE_PATH + "/**"))
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .accessDeniedHandler(authorizationDeniedProblemHandler))
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .authenticationEntryPoint(authenticationProblemEntryPoint)
-                        .jwt(Customizer.withDefaults()));
+                        .accessDeniedHandler(authorizationDeniedProblemHandler)
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));
 
         return http.build();
+    }
+
+    @Bean
+    JwtAuthenticationConverter jwtAuthenticationConverter(
+            KeycloakClientRoleAuthoritiesConverter authoritiesConverter) {
+        JwtAuthenticationConverter authenticationConverter = new JwtAuthenticationConverter();
+        authenticationConverter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
+        return authenticationConverter;
     }
 }

@@ -45,7 +45,9 @@ Infrastructure and documentation endpoints such as `/actuator/health`, `/v3/api-
 
 Authentication spans the frontend application boundary and the backend `identity.security` package. The React application delegates browser login to Keycloak with Authorization Code Flow and PKCE S256. The Spring Boot application is an OAuth2 Resource Server that validates bearer access tokens for `/api/v1/**`; it is not an OAuth2 login client and has no backend client secret.
 
-Cross-cutting security owns token validation and authenticated-versus-unauthenticated routing. Business role mapping and authorization policies remain inside the identity/access-policy boundary and are deferred to US-006. See [authentication.md](authentication.md) for the detailed flow and local development configuration.
+Cross-cutting security owns token validation, fail-closed routing, allowlisted `poultryflow-api` client-role mapping, and safe 401/403 responses. Authorization policies remain close to controller and use-case boundaries through method security. Frontend role guards are a user-experience aid only; the backend remains authoritative.
+
+The current roles are coarse application permissions. A future `FarmMembership` model must remain authoritative for access to a specific farm, so a global role can never grant access to a farm for which the user has no valid membership. Persistent authorization-denied audit events remain owned by the audit module. See [authentication.md](authentication.md) for the detailed claim and local configuration.
 
 ## Frontend organization
 
@@ -53,4 +55,4 @@ Cross-cutting security owns token validation and authenticated-versus-unauthenti
 
 ## Deferred architecture
 
-Docker Compose defines the local PostgreSQL and Keycloak services, Keycloak/OIDC authentication is implemented, and GitHub Actions enforces repository quality gates. Role-based authorization, credential recovery, advanced session lifecycle, application datasource wiring, JPA persistence, Flyway business migrations, S3-compatible storage, PWA capabilities, IndexedDB/Dexie, and idempotent synchronization remain deferred to their owning stories. IoT, message brokers, Kubernetes, native mobile applications, and AI functionality are outside the MVP architecture.
+Docker Compose defines the local PostgreSQL and Keycloak services, Keycloak/OIDC authentication and coarse role-based authorization are implemented, and GitHub Actions enforces repository quality gates. FarmMembership authorization, credential recovery, advanced session lifecycle, persistent audit storage, application datasource wiring, JPA persistence, Flyway business migrations, S3-compatible storage, PWA capabilities, IndexedDB/Dexie, and idempotent synchronization remain deferred to their owning stories. IoT, message brokers, Kubernetes, native mobile applications, and AI functionality are outside the MVP architecture.

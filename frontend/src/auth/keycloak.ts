@@ -1,4 +1,5 @@
 import Keycloak from 'keycloak-js'
+import { extractPoultryFlowRoles } from './roles'
 
 type AuthenticationEvents = {
   onAuthenticated: () => void
@@ -39,6 +40,10 @@ export const keycloakClient = {
   username(): string | undefined {
     const username = keycloak.tokenParsed?.preferred_username
     return typeof username === 'string' ? username : undefined
+  },
+
+  roles() {
+    return extractPoultryFlowRoles(keycloak.tokenParsed)
   },
 
   login(): Promise<void> {

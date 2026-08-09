@@ -8,12 +8,13 @@ import { keycloakClient } from './keycloak'
 
 type AuthenticationState = Pick<
   AuthenticationContextValue,
-  'status' | 'username'
+  'status' | 'username' | 'roles'
 >
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<AuthenticationState>({
     status: 'initializing',
+    roles: [],
   })
 
   useEffect(() => {
@@ -29,15 +30,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
           ? {
               status: 'authenticated',
               username: keycloakClient.username(),
+              roles: keycloakClient.roles(),
             }
-          : { status: 'unauthenticated' },
+          : { status: 'unauthenticated', roles: [] },
       )
     }
 
     const showAuthenticationError = () => {
       keycloakClient.clearToken()
       if (active) {
-        setState({ status: 'error' })
+        setState({ status: 'error', roles: [] })
       }
     }
 
@@ -69,21 +71,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () => ({
       ...state,
       async login() {
-        setState({ status: 'initializing' })
+        setState({ status: 'initializing', roles: [] })
         try {
           await keycloakClient.login()
         } catch {
-          setState({ status: 'error' })
+          setState({ status: 'error', roles: [] })
         }
       },
       async logout() {
-        setState({ status: 'unauthenticated' })
+        setState({ status: 'unauthenticated', roles: [] })
         try {
           await keycloakClient.logout()
         } catch {
           keycloakClient.clearToken()
-          setState({ status: 'error' })
+          setState({ status: 'error', roles: [] })
         }
+      },
+      hasRole(role) {
+        return state.roles.includes(role)
+      },
+      hasAnyRole(roles) {
+        return roles.some((role) => state.roles.includes(role))
       },
     }),
     [state],

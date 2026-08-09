@@ -1,13 +1,15 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { PropsWithChildren } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthenticationPanel } from './AuthenticationPanel'
 import { AuthProvider } from './AuthProvider'
+import { useAuth } from './useAuth'
 
 const keycloakClient = vi.hoisted(() => ({
   initialize: vi.fn(),
   isAuthenticated: vi.fn(),
   username: vi.fn(),
+  roles: vi.fn(),
   login: vi.fn(),
   logout: vi.fn(),
   refreshToken: vi.fn(),
@@ -21,11 +23,22 @@ function AuthenticationUnderTest({ children }: PropsWithChildren) {
   return <AuthProvider>{children}</AuthProvider>
 }
 
+function RoleStateProbe() {
+  const authentication = useAuth()
+  return (
+    <p>
+      {authentication.status}:{authentication.roles.join(',')}:
+      {authentication.hasRole('STAFF') ? 'staff' : 'not-staff'}
+    </p>
+  )
+}
+
 describe('PoultryFlow authentication', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     keycloakClient.initialize.mockResolvedValue(false)
     keycloakClient.isAuthenticated.mockReturnValue(false)
+    keycloakClient.roles.mockReturnValue([])
     keycloakClient.login.mockResolvedValue(undefined)
     keycloakClient.logout.mockResolvedValue(undefined)
     keycloakClient.refreshToken.mockResolvedValue(false)
@@ -74,6 +87,23 @@ describe('PoultryFlow authentication', () => {
     expect(
       screen.queryByText('sensitive identity-provider detail'),
     ).not.toBeInTheDocument()
+  })
+
+  it('updates typed roles after Keycloak reports authentication', async () => {
+    let onAuthenticated: (() => void) | undefined
+    keycloakClient.setEvents.mockImplementation((events) => {
+      onAuthenticated = events.onAuthenticated
+    })
+
+    render(<RoleStateProbe />, { wrapper: AuthenticationUnderTest })
+
+    expect(await screen.findByText('unauthenticated::not-staff')).toBeVisible()
+
+    keycloakClient.isAuthenticated.mockReturnValue(true)
+    keycloakClient.roles.mockReturnValue(['STAFF'])
+    await act(async () => onAuthenticated?.())
+
+    expect(await screen.findByText('authenticated:STAFF:staff')).toBeVisible()
   })
 
   it('clears authentication when token refresh fails', async () => {

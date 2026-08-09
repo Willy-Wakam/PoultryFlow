@@ -22,7 +22,7 @@ All `/api/v1/**` operations require a Keycloak access token sent as:
 Authorization: Bearer <access-token>
 ```
 
-Spring Security validates the signature, temporal claims, `poultryflow` realm issuer, and `poultryflow-api` audience. ID tokens are not accepted as API credentials. Role-based authorization is deferred to US-006; US-005 enforces authenticated versus unauthenticated access only.
+Spring Security validates the signature, temporal claims, `poultryflow` realm issuer, and `poultryflow-api` audience. ID tokens are not accepted as API credentials. Known `poultryflow-api` client roles are mapped to Spring Security authorities; realm roles, other-client roles, and unknown names are ignored.
 
 The reusable OpenAPI security scheme is `BearerAuth`, represented as HTTP Bearer with JWT format. A contract customizer applies it to documented `/api/v1/**` operations without marking the public infrastructure and documentation routes as protected.
 
@@ -31,6 +31,8 @@ These endpoints remain public:
 - `/actuator/health`
 - `/v3/api-docs` and `/v3/api-docs/**`
 - `/swagger-ui.html` and `/swagger-ui/**`
+
+Role checks belong at controller or use-case boundaries. Read-like operations may allow `VIEWER`, `STAFF`, `MANAGER`, and `OWNER`, while operational mutations exclude `VIEWER`. Each business module must define its actual policy when its endpoints are implemented. `ACCOUNTANT` is part of the role vocabulary, but finance permissions are deferred to finance stories. Future farm-scoped operations must also enforce `FarmMembership`.
 
 ## Versioning
 
@@ -61,7 +63,9 @@ Each validation violation contains `field` and `message`. Responses must never e
 
 RFC 9457 permits its standard members to be omitted or defaulted, so the reusable schema requires only the fields PoultryFlow guarantees for every handled problem: `status` and `code`. The runtime handler uses `VALIDATION_FAILED` for validation errors and preserves that specific code. Other inherited Spring MVC ProblemDetail responses receive the safe `HTTP_ERROR` fallback when no code is already present.
 
-An unauthenticated request to `/api/v1/**` receives HTTP 401, `application/problem+json`, `WWW-Authenticate: Bearer`, and the stable code `AUTHENTICATION_REQUIRED`. The response uses a fixed client-safe detail and never exposes the underlying Spring Security or OIDC exception. Domain-specific error codes belong to future module stories.
+An unauthenticated request to `/api/v1/**` receives HTTP 401, `application/problem+json`, `WWW-Authenticate: Bearer`, and the stable code `AUTHENTICATION_REQUIRED`. The response uses a fixed client-safe detail and never exposes the underlying Spring Security or OIDC exception.
+
+An authenticated request that fails a role policy receives HTTP 403, `application/problem+json`, and the stable code `AUTHORIZATION_DENIED`. Authentication and authorization failures remain distinct, and neither response exposes token claims or framework exceptions. Domain-specific error codes belong to future module stories.
 
 ## Idempotency
 

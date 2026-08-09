@@ -1,9 +1,11 @@
 package com.poultryflow.identity.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -11,20 +13,31 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.poultryflow.PoultryFlowApplication;
 import com.poultryflow.shared.api.ApiContract;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -32,9 +45,12 @@ import org.springframework.web.context.WebApplicationContext;
         PoultryFlowApplication.class,
         SecurityIntegrationTests.SecurityTestConfiguration.class
 })
+@ExtendWith(OutputCaptureExtension.class)
 class SecurityIntegrationTests {
 
     private static final String TEST_API_PATH = "/api/v1/test/security";
+    private static final String TEST_READ_PATH = "/api/v1/test/security/read";
+    private static final String TEST_WRITE_PATH = "/api/v1/test/security/write";
     private static final String UNLISTED_TEST_PATH = "/test/security-fallback";
 
     @Autowired
@@ -42,6 +58,9 @@ class SecurityIntegrationTests {
 
     @Autowired
     private Environment environment;
+
+    @Autowired
+    private KeycloakClientRoleAuthoritiesConverter roleAuthoritiesConverter;
 
     private MockMvc mockMvc;
 
@@ -63,7 +82,7 @@ class SecurityIntegrationTests {
 
     @Test
     void returnsSafeProblemDetailWhenAccessTokenIsMissing() throws Exception {
-        mockMvc.perform(get(TEST_API_PATH).accept(MediaType.APPLICATION_PROBLEM_JSON))
+        mockMvc.perform(post(TEST_WRITE_PATH).accept(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
@@ -104,6 +123,44 @@ class SecurityIntegrationTests {
                 .andExpect(jsonPath("$.status").value("authenticated"));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"VIEWER", "STAFF", "MANAGER", "OWNER"})
+    void allowsReadForOperationalRoles(String role) throws Exception {
+        mockMvc.perform(get(TEST_READ_PATH).with(jwtWithRoles(role)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.operation").value("read"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"STAFF", "MANAGER", "OWNER"})
+    void allowsOperationalWriteForNonViewerRoles(String role) throws Exception {
+        mockMvc.perform(post(TEST_WRITE_PATH).with(jwtWithRoles(role)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.operation").value("write"));
+    }
+
+    @Test
+    void returnsSafeProblemDetailAndAuditWarningWhenViewerAttemptsWrite(CapturedOutput output)
+            throws Exception {
+        mockMvc.perform(post(TEST_WRITE_PATH)
+                        .with(jwtWithRoles("VIEWER"))
+                        .accept(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.code").value(ApiContract.AUTHORIZATION_DENIED_CODE))
+                .andExpect(jsonPath("$.exception").doesNotExist())
+                .andExpect(jsonPath("$.trace").doesNotExist());
+
+        assertThat(output)
+                .contains("event=authorization_denied")
+                .contains("principal=test-user")
+                .contains("method=POST")
+                .contains("path=" + TEST_WRITE_PATH)
+                .doesNotContain("sensitive-test-token")
+                .doesNotContain("AccessDeniedException");
+    }
+
     @Test
     void configuresIssuerJwkSetAndAudienceValidation() {
         assertThat(environment.getProperty(
@@ -115,6 +172,19 @@ class SecurityIntegrationTests {
         assertThat(environment.getProperty(
                         "spring.security.oauth2.resourceserver.jwt.audiences"))
                 .isEqualTo("poultryflow-api");
+    }
+
+    private RequestPostProcessor jwtWithRoles(String... roles) {
+        Jwt jwt = Jwt.withTokenValue("sensitive-test-token")
+                .header("alg", "none")
+                .subject("test-user")
+                .claim(
+                        "resource_access",
+                        Map.of("poultryflow-api", Map.of("roles", List.of(roles))))
+                .build();
+        return authentication(new JwtAuthenticationToken(
+                jwt,
+                roleAuthoritiesConverter.convert(jwt)));
     }
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -130,13 +200,25 @@ class SecurityIntegrationTests {
     static class SecurityTestController {
 
         @GetMapping(TEST_API_PATH)
-        Map<String, String> authenticated() {
+        public Map<String, String> authenticated() {
             return Map.of("status", "authenticated");
         }
 
         @GetMapping(UNLISTED_TEST_PATH)
-        Map<String, String> authenticatedFallback() {
+        public Map<String, String> authenticatedFallback() {
             return Map.of("status", "authenticated");
+        }
+
+        @GetMapping(TEST_READ_PATH)
+        @PreAuthorize("hasAnyRole('VIEWER', 'STAFF', 'MANAGER', 'OWNER')")
+        public Map<String, String> readOperation() {
+            return Map.of("operation", "read");
+        }
+
+        @PostMapping(TEST_WRITE_PATH)
+        @PreAuthorize("hasAnyRole('STAFF', 'MANAGER', 'OWNER')")
+        public Map<String, String> writeOperation() {
+            return Map.of("operation", "write");
         }
     }
 }

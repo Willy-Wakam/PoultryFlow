@@ -4,6 +4,32 @@
   "registrationAllowed": false,
   "resetPasswordAllowed": false,
   "rememberMe": false,
+  "roles": {
+    "client": {
+      "poultryflow-api": [
+        {
+          "name": "OWNER",
+          "description": "Highest coarse application role; farm access remains membership-constrained."
+        },
+        {
+          "name": "MANAGER",
+          "description": "Farm manager with operational management access."
+        },
+        {
+          "name": "STAFF",
+          "description": "Farm staff member with operational working access."
+        },
+        {
+          "name": "ACCOUNTANT",
+          "description": "Finance-focused application role for future financial policies."
+        },
+        {
+          "name": "VIEWER",
+          "description": "Read-only application access."
+        }
+      ]
+    }
+  },
   "clients": [
     {
       "clientId": "poultryflow-web",
