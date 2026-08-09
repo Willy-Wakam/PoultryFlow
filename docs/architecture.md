@@ -33,10 +33,18 @@ The package below each module name is its ownership boundary. US-001 establishes
 - A shared area may contain genuinely cross-cutting primitives, but generic helpers should not accumulate in a broad `utils` package.
 - Module boundaries should remain testable so that a future architecture test can enforce them when production code is introduced.
 
+## API contract boundary
+
+Business REST endpoints use the `/api/v1` major-version prefix for the MVP. Additive compatible changes remain within v1; breaking changes must be documented and normally move to a new major prefix.
+
+Cross-cutting API metadata, reusable OpenAPI components, and common ProblemDetail handling live under `com.poultryflow.shared.api`. Business controllers do not move into that shared area: each controller remains owned by its corresponding module and delegates to that module's application boundary.
+
+Infrastructure and documentation endpoints such as `/actuator/health`, `/v3/api-docs`, and `/swagger-ui/` remain outside the business API prefix. See [api-contract.md](api-contract.md) for versioning, errors, idempotency, and contract-evolution rules.
+
 ## Frontend organization
 
 `src/app` owns application composition and global presentation. Reusable technical UI belongs in `src/components`. Business behavior will be grouped under `src/features` when feature stories begin, without pre-creating empty implementations.
 
 ## Deferred architecture
 
-PostgreSQL, Flyway, Keycloak, S3-compatible storage, Docker Compose, GitHub Actions, PWA capabilities, IndexedDB/Dexie, and idempotent synchronization are planned but not implemented by US-001. IoT, message brokers, Kubernetes, native mobile applications, and AI functionality are outside the MVP architecture.
+Docker Compose now defines the local PostgreSQL and Keycloak services, and GitHub Actions enforces repository quality gates. Application datasource wiring, JPA persistence, Flyway business migrations, Keycloak integration, S3-compatible storage, PWA capabilities, IndexedDB/Dexie, and idempotent synchronization remain deferred to their owning stories. IoT, message brokers, Kubernetes, native mobile applications, and AI functionality are outside the MVP architecture.
