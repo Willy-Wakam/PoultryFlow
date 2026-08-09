@@ -60,11 +60,15 @@ PoultryFlow never indicates whether an account exists and never renders raw Keyc
 
 ## Token policy
 
-Access, refresh, and ID tokens remain inside the Keycloak adapter in browser memory. PoultryFlow does not persist them in localStorage, sessionStorage, IndexedDB, cookies, or application state, and does not log or render them. The frontend exposes only the allowlisted `poultryflow-api` roles as typed in-memory authentication state.
+Access, refresh, and ID tokens remain inside the Keycloak adapter in browser memory. PoultryFlow does not persist them in localStorage, sessionStorage, IndexedDB, cookies, or application state, and does not log or render them. The frontend exposes only the subject and allowlisted `poultryflow-api` roles as typed in-memory authorization state.
 
-The adapter refreshes an expiring access token when needed. A failed refresh clears the in-memory authentication state and requires the user to sign in again without exposing the raw failure.
+Before each protected request, the adapter runs `updateToken(30)`. Concurrent requests share one refresh operation. If refresh fails while the current access token is still unexpired, that token may complete the request; an expired or missing token is never sent. A refresh failure with no usable token moves the UI to the explicit `expired` state and requires a new sign-in without exposing the raw failure.
+
+The protected request boundary accepts only same-origin `/api/**` destinations and attaches the bearer token only after validating that destination. A backend 401 expires the local online session and is not retried. A 403 remains an authorization result and does not expire the session. Write requests are never automatically replayed, avoiding duplicate POST or PATCH operations. Future TanStack Query functions and synchronization code must use this boundary rather than reading adapter tokens directly.
 
 A full page reload restores authentication, when a Keycloak SSO session is available, through `check-sso`; it does not restore tokens from PoultryFlow storage.
+
+Logout immediately removes the displayed username, roles, and offline authorization snapshot before redirecting to Keycloak. Local state remains cleared if remote logout fails.
 
 ## Backend validation
 
@@ -147,10 +151,12 @@ Keycloak's discovery document is available at `http://localhost:8081/realms/poul
 
 ## Offline impact
 
-Authentication and credential recovery require network access to Keycloak. Recovery also requires access to the configured email provider and has no offline mode. PoultryFlow does not cache credentials or tokens to provide offline login. Future offline workflows may define access to previously authorized local business data, but they do not include offline authentication, recovery, or synchronization in US-007.
+Authentication and credential recovery require network access to Keycloak. Recovery also requires access to the configured email provider and has no offline mode. PoultryFlow does not cache credentials or tokens to provide offline login. Future offline workflows may define access to previously authorized local business data, but US-008 does not implement offline authentication, data storage, or synchronization.
+
+While the page remains open, PoultryFlow keeps a non-secret authorization snapshot containing only the authenticated subject and allowlisted application roles. Successful authentication or token refresh replaces it. Session expiry retains it so future offline features can evaluate previously authorized data, while normal `RequireRole` guards continue to require an authenticated online session. Logout, a new sign-in attempt, and a user switch clear it. The snapshot is never written to browser storage and does not grant backend access. Future offline storage must bind cached data to the authorized subject and snapshot; it must never infer permission from cached UI state alone.
 
 ## Deferred security work
 
 - A future farm-management story must constrain farm-scoped access with `FarmMembership`; coarse roles alone are insufficient.
 - The audit epic owns durable storage and querying of authorization-denied events.
-- US-008 owns advanced secure session lifecycle and timeout policies.
+- Deployment-specific Keycloak session timeout values remain operational configuration; this story does not change the committed realm defaults.

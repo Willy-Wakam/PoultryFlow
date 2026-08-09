@@ -1,10 +1,15 @@
 import Keycloak from 'keycloak-js'
+import {
+  clearOfflineAuthorization,
+  recordOfflineAuthorization,
+} from './offlineAuthorization'
 import { extractPoultryFlowRoles } from './roles'
 
 type AuthenticationEvents = {
   onAuthenticated: () => void
   onAuthenticationError: () => void
   onLoggedOut: () => void
+  onSessionExpired: () => void
   onTokenExpired: () => void
 }
 
@@ -37,6 +42,73 @@ const keycloak = new Keycloak({
 })
 
 let initialization: Promise<boolean> | undefined
+let authenticationEvents: AuthenticationEvents | undefined
+let refreshInFlight: Promise<boolean> | undefined
+let suppressAdapterLogout = false
+let sessionExpired = false
+
+function hasUsableAccessToken(): boolean {
+  const token = keycloak.token
+  const expiresAt = keycloak.tokenParsed?.exp
+  const timeSkew = keycloak.timeSkew ?? 0
+
+  return (
+    keycloak.authenticated === true &&
+    typeof token === 'string' &&
+    token.length > 0 &&
+    typeof expiresAt === 'number' &&
+    expiresAt + timeSkew > Math.ceil(Date.now() / 1000)
+  )
+}
+
+function synchronizeOfflineAuthorization(): void {
+  const subject = keycloak.tokenParsed?.sub
+  if (!hasUsableAccessToken() || typeof subject !== 'string') {
+    return
+  }
+
+  recordOfflineAuthorization(
+    subject,
+    extractPoultryFlowRoles(keycloak.tokenParsed),
+  )
+  sessionExpired = false
+}
+
+function clearAdapterTokenSilently(): void {
+  suppressAdapterLogout = true
+  try {
+    keycloak.clearToken()
+  } finally {
+    suppressAdapterLogout = false
+  }
+}
+
+function refreshAccessToken(): Promise<boolean> {
+  refreshInFlight ??= keycloak
+    .updateToken(30)
+    .then((refreshed) => {
+      if (refreshed && hasUsableAccessToken()) {
+        synchronizeOfflineAuthorization()
+        authenticationEvents?.onAuthenticated()
+      }
+      return refreshed
+    })
+    .finally(() => {
+      refreshInFlight = undefined
+    })
+
+  return refreshInFlight
+}
+
+function expireOnlineSession(): void {
+  if (sessionExpired) {
+    return
+  }
+
+  sessionExpired = true
+  clearAdapterTokenSilently()
+  authenticationEvents?.onSessionExpired()
+}
 
 export const keycloakClient = {
   initialize(): Promise<boolean> {
@@ -54,7 +126,7 @@ export const keycloakClient = {
   },
 
   isAuthenticated(): boolean {
-    return keycloak.authenticated === true
+    return hasUsableAccessToken()
   },
 
   username(): string | undefined {
@@ -66,34 +138,98 @@ export const keycloakClient = {
     return extractPoultryFlowRoles(keycloak.tokenParsed)
   },
 
+  synchronizeAuthorizationSnapshot(): void {
+    synchronizeOfflineAuthorization()
+  },
+
   login(): Promise<void> {
+    clearOfflineAuthorization()
+    clearAdapterTokenSilently()
+    sessionExpired = false
     return keycloak.login({ redirectUri: applicationRoot })
   },
 
   async recoverCredentials(): Promise<void> {
+    clearOfflineAuthorization()
+    clearAdapterTokenSilently()
+    sessionExpired = false
     const loginUrl = await keycloak.createLoginUrl({
       redirectUri: applicationRoot,
     })
     window.location.assign(credentialRecoveryUrl(loginUrl))
   },
 
-  logout(): Promise<void> {
-    return keycloak.logout({ redirectUri: applicationRoot })
+  async logout(): Promise<void> {
+    clearOfflineAuthorization()
+    sessionExpired = false
+    try {
+      await keycloak.logout({ redirectUri: applicationRoot })
+    } catch (error) {
+      clearAdapterTokenSilently()
+      throw error
+    }
   },
 
-  refreshToken(): Promise<boolean> {
-    return keycloak.updateToken(30)
+  async refreshToken(): Promise<boolean> {
+    const refreshed = await refreshAccessToken()
+    if (!hasUsableAccessToken()) {
+      throw new Error('Session expired')
+    }
+    return refreshed
   },
 
-  clearToken(): void {
-    keycloak.clearToken()
+  async accessTokenForProtectedRequest(): Promise<string | undefined> {
+    if (keycloak.authenticated !== true || typeof keycloak.token !== 'string') {
+      expireOnlineSession()
+      return undefined
+    }
+
+    try {
+      await refreshAccessToken()
+    } catch {
+      if (hasUsableAccessToken()) {
+        return keycloak.token
+      }
+
+      expireOnlineSession()
+      return undefined
+    }
+
+    if (!hasUsableAccessToken()) {
+      expireOnlineSession()
+      return undefined
+    }
+
+    return keycloak.token
+  },
+
+  expireSession(): void {
+    expireOnlineSession()
+  },
+
+  clearLocalSession(): void {
+    sessionExpired = false
+    clearOfflineAuthorization()
+    clearAdapterTokenSilently()
   },
 
   setEvents(events: AuthenticationEvents): void {
-    keycloak.onAuthSuccess = events.onAuthenticated
+    authenticationEvents = events
+    keycloak.onAuthSuccess = () => {
+      synchronizeOfflineAuthorization()
+      events.onAuthenticated()
+    }
     keycloak.onAuthError = events.onAuthenticationError
-    keycloak.onAuthRefreshError = events.onAuthenticationError
-    keycloak.onAuthLogout = events.onLoggedOut
+    keycloak.onAuthRefreshError = undefined
+    keycloak.onAuthLogout = () => {
+      if (suppressAdapterLogout || refreshInFlight) {
+        return
+      }
+
+      sessionExpired = false
+      clearOfflineAuthorization()
+      events.onLoggedOut()
+    }
     keycloak.onTokenExpired = events.onTokenExpired
   },
 }

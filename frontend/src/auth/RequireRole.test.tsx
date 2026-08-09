@@ -9,9 +9,10 @@ import type { PoultryFlowRole } from './roles'
 
 function authenticationWithRoles(
   roles: readonly PoultryFlowRole[],
+  status: AuthenticationContextValue['status'] = 'authenticated',
 ): AuthenticationContextValue {
   return {
-    status: 'authenticated',
+    status,
     roles,
     hasRole: (role) => roles.includes(role),
     hasAnyRole: (requiredRoles) =>
@@ -25,10 +26,11 @@ function authenticationWithRoles(
 function renderGuard(
   assignedRoles: readonly PoultryFlowRole[],
   requiredRoles: readonly PoultryFlowRole[],
+  status: AuthenticationContextValue['status'] = 'authenticated',
 ) {
   render(
     <AuthenticationContext.Provider
-      value={authenticationWithRoles(assignedRoles)}
+      value={authenticationWithRoles(assignedRoles, status)}
     >
       <RequireRole anyOf={requiredRoles} fallback={<p>Access denied</p>}>
         <p>Protected content</p>
@@ -56,5 +58,12 @@ describe('RequireRole', () => {
     renderGuard(['VIEWER'], ['STAFF', 'MANAGER', 'OWNER'])
 
     expect(screen.getByText('Access denied')).toBeVisible()
+  })
+
+  it('does not treat an offline snapshot as an authenticated online session', () => {
+    renderGuard(['OWNER'], ['OWNER'], 'expired')
+
+    expect(screen.getByText('Access denied')).toBeVisible()
+    expect(screen.queryByText('Protected content')).not.toBeInTheDocument()
   })
 })

@@ -14,7 +14,9 @@ const keycloakClient = vi.hoisted(() => ({
   recoverCredentials: vi.fn(),
   logout: vi.fn(),
   refreshToken: vi.fn(),
-  clearToken: vi.fn(),
+  synchronizeAuthorizationSnapshot: vi.fn(),
+  expireSession: vi.fn(),
+  clearLocalSession: vi.fn(),
   setEvents: vi.fn(),
 }))
 
@@ -140,7 +142,28 @@ describe('PoultryFlow authentication', () => {
     expect(await screen.findByText('authenticated:STAFF:staff')).toBeVisible()
   })
 
-  it('clears authentication when token refresh fails', async () => {
+  it('keeps authentication current when token refresh succeeds', async () => {
+    let onTokenExpired: (() => void) | undefined
+    keycloakClient.initialize.mockResolvedValue(true)
+    keycloakClient.isAuthenticated.mockReturnValue(true)
+    keycloakClient.roles.mockReturnValue(['STAFF'])
+    keycloakClient.setEvents.mockImplementation((events) => {
+      onTokenExpired = events.onTokenExpired
+    })
+
+    render(<RoleStateProbe />, { wrapper: AuthenticationUnderTest })
+
+    expect(await screen.findByText('authenticated:STAFF:staff')).toBeVisible()
+    keycloakClient.roles.mockReturnValue(['MANAGER'])
+    await act(async () => onTokenExpired?.())
+
+    await waitFor(() => expect(keycloakClient.refreshToken).toHaveBeenCalled())
+    expect(
+      await screen.findByText('authenticated:MANAGER:not-staff'),
+    ).toBeVisible()
+  })
+
+  it('shows the expired state when token refresh fails', async () => {
     keycloakClient.initialize.mockResolvedValue(true)
     keycloakClient.isAuthenticated.mockReturnValue(true)
     keycloakClient.setEvents.mockImplementation((events) => {
@@ -152,9 +175,75 @@ describe('PoultryFlow authentication', () => {
 
     render(<AuthenticationPanel />, { wrapper: AuthenticationUnderTest })
 
-    await waitFor(() => expect(keycloakClient.clearToken).toHaveBeenCalled())
+    await waitFor(() => expect(keycloakClient.expireSession).toHaveBeenCalled())
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Authentication could not be completed. Please try again.',
+      'Your online session has expired.',
     )
+  })
+
+  it('offers a new sign-in when a protected request expires the session', async () => {
+    let onSessionExpired: (() => void) | undefined
+    keycloakClient.setEvents.mockImplementation((events) => {
+      onSessionExpired = events.onSessionExpired
+    })
+
+    render(<AuthenticationPanel />, { wrapper: AuthenticationUnderTest })
+    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeVisible()
+
+    await act(async () => onSessionExpired?.())
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in again' }))
+
+    expect(keycloakClient.login).toHaveBeenCalledOnce()
+  })
+
+  it('clears visible identity before remote logout completes', async () => {
+    let completeLogout: (() => void) | undefined
+    keycloakClient.initialize.mockResolvedValue(true)
+    keycloakClient.isAuthenticated.mockReturnValue(true)
+    keycloakClient.username.mockReturnValue('local-farmer')
+    keycloakClient.roles.mockReturnValue(['STAFF'])
+    keycloakClient.logout.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        completeLogout = resolve
+      }),
+    )
+
+    render(
+      <>
+        <AuthenticationPanel />
+        <RoleStateProbe />
+      </>,
+      { wrapper: AuthenticationUnderTest },
+    )
+    expect(await screen.findByText('authenticated:STAFF:staff')).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+
+    expect(await screen.findByText('unauthenticated::not-staff')).toBeVisible()
+    completeLogout?.()
+  })
+
+  it('keeps local identity cleared when remote logout fails', async () => {
+    keycloakClient.initialize.mockResolvedValue(true)
+    keycloakClient.isAuthenticated.mockReturnValue(true)
+    keycloakClient.username.mockReturnValue('local-farmer')
+    keycloakClient.roles.mockReturnValue(['STAFF'])
+    keycloakClient.logout.mockRejectedValueOnce(new Error('remote failure'))
+
+    render(
+      <>
+        <AuthenticationPanel />
+        <RoleStateProbe />
+      </>,
+      { wrapper: AuthenticationUnderTest },
+    )
+    expect(await screen.findByText('authenticated:STAFF:staff')).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+
+    await waitFor(() =>
+      expect(keycloakClient.clearLocalSession).toHaveBeenCalled(),
+    )
+    expect(await screen.findByText('error::not-staff')).toBeVisible()
   })
 })

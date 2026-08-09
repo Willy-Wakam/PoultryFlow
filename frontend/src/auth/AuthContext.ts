@@ -2,7 +2,7 @@ import { createContext } from 'react'
 import type { PoultryFlowRole } from './roles'
 
 export type AuthenticationStatus =
-  'initializing' | 'unauthenticated' | 'authenticated' | 'error'
+  'initializing' | 'unauthenticated' | 'authenticated' | 'expired' | 'error'
 
 export type AuthenticationContextValue = {
   status: AuthenticationStatus

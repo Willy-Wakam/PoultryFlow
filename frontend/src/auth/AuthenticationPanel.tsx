@@ -28,6 +28,20 @@ export function AuthenticationPanel() {
     )
   }
 
+  if (authentication.status === 'expired') {
+    return (
+      <div className="authentication-panel">
+        <p className="authentication-error" role="alert">
+          Your online session has expired. Sign in again to continue protected
+          online operations.
+        </p>
+        <button type="button" onClick={() => void authentication.login()}>
+          Sign in again
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="authentication-panel">
       {authentication.status === 'error' ? (
