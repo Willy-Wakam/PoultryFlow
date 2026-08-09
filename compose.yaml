@@ -1,0 +1,59 @@
+name: poultryflow
+
+services:
+  postgres:
+    image: postgres:18.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:?Set POSTGRES_DB in .env}"
+      POSTGRES_USER: "${POSTGRES_USER:?Set POSTGRES_USER in .env}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      KEYCLOAK_DB_NAME: "${KEYCLOAK_DB_NAME:?Set KEYCLOAK_DB_NAME in .env}"
+      KEYCLOAK_DB_USER: "${KEYCLOAK_DB_USER:?Set KEYCLOAK_DB_USER in .env}"
+      KEYCLOAK_DB_PASSWORD: "${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}"
+    ports:
+      - "${POSTGRES_PORT:?Set POSTGRES_PORT in .env}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./infrastructure/postgres/init/01-create-keycloak-database.sh:/docker-entrypoint-initdb.d/01-create-keycloak-database.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.0
+    command: ["start-dev"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME:?Set KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME in .env}"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD:?Set KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD in .env}"
+      KC_DB: postgres
+      KC_DB_URL: "jdbc:postgresql://postgres:5432/${KEYCLOAK_DB_NAME:?Set KEYCLOAK_DB_NAME in .env}"
+      KC_DB_USERNAME: "${KEYCLOAK_DB_USER:?Set KEYCLOAK_DB_USER in .env}"
+      KC_DB_PASSWORD: "${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_HOSTNAME: "http://localhost:${KEYCLOAK_PORT:?Set KEYCLOAK_PORT in .env}"
+    ports:
+      - "${KEYCLOAK_PORT:?Set KEYCLOAK_PORT in .env}:8080"
+      - "${KEYCLOAK_MANAGEMENT_PORT:?Set KEYCLOAK_MANAGEMENT_PORT in .env}:9000"
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - '{ printf "HEAD /health/ready HTTP/1.0\r\n\r\n" >&0; grep "HTTP/1.0 200"; } 0<>/dev/tcp/localhost/9000'
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+    stop_grace_period: 30s
+
+volumes:
+  postgres_data:
