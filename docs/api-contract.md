@@ -29,19 +29,19 @@ Removing fields or operations, changing their meaning incompatibly, or silently 
 
 Errors follow Spring's RFC 9457 `ProblemDetail` model rather than a separate proprietary envelope.
 
-| Field | Meaning |
-| --- | --- |
-| `type` | URI reference identifying the problem category |
-| `title` | Stable human-readable problem summary |
-| `status` | HTTP status code |
-| `detail` | Client-safe explanation for this occurrence |
-| `instance` | URI reference identifying the request occurrence |
-| `code` | Stable PoultryFlow machine-readable error code |
-| `violations` | Optional structured validation failures |
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `type` | No | URI reference identifying the problem category |
+| `title` | No | Stable human-readable problem summary |
+| `status` | Yes | HTTP status code |
+| `detail` | No | Client-safe explanation for this occurrence |
+| `instance` | No | URI reference identifying the request occurrence |
+| `code` | Yes | Stable PoultryFlow machine-readable error code |
+| `violations` | No | Structured validation failures when applicable |
 
 Each validation violation contains `field` and `message`. Responses must never expose stack traces, Java exception names, database details, credentials, or other sensitive internals.
 
-The initial runtime handler defines `VALIDATION_FAILED` and returns deterministic validation problems. Domain-specific error codes belong to future module stories.
+RFC 9457 permits its standard members to be omitted or defaulted, so the reusable schema requires only the fields PoultryFlow guarantees for every handled problem: `status` and `code`. The runtime handler uses `VALIDATION_FAILED` for validation errors and preserves that specific code. Other inherited Spring MVC ProblemDetail responses receive the safe `HTTP_ERROR` fallback when no code is already present. Domain-specific error codes belong to future module stories.
 
 ## Idempotency
 

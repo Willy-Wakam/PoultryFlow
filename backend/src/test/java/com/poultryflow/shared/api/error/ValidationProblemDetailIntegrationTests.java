@@ -1,5 +1,6 @@
 package com.poultryflow.shared.api.error;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -57,6 +58,20 @@ class ValidationProblemDetailIntegrationTests {
                 .andExpect(jsonPath("$.code").value(ApiContract.VALIDATION_FAILED_CODE))
                 .andExpect(jsonPath("$.violations[0].field").value("name"))
                 .andExpect(jsonPath("$.violations[0].message").value("is required"))
+                .andExpect(jsonPath("$.exception").doesNotExist())
+                .andExpect(jsonPath("$.trace").doesNotExist());
+    }
+
+    @Test
+    void addsFallbackCodeToInheritedSpringMvcProblemDetail() throws Exception {
+        mockMvc.perform(get("/test/validation")
+                        .accept(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Method Not Allowed"))
+                .andExpect(jsonPath("$.status").value(405))
+                .andExpect(jsonPath("$.detail").exists())
+                .andExpect(jsonPath("$.code").value(ApiContract.HTTP_ERROR_CODE))
                 .andExpect(jsonPath("$.exception").doesNotExist())
                 .andExpect(jsonPath("$.trace").doesNotExist());
     }

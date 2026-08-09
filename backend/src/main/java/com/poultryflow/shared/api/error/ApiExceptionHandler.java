@@ -53,6 +53,27 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                 request);
     }
 
+    @Override
+    protected ResponseEntity<Object> createResponseEntity(
+            Object body,
+            HttpHeaders headers,
+            HttpStatusCode statusCode,
+            WebRequest request) {
+        if (body instanceof ProblemDetail problem) {
+            ensureErrorCode(problem);
+        }
+        return super.createResponseEntity(body, headers, statusCode, request);
+    }
+
+    private void ensureErrorCode(ProblemDetail problem) {
+        Object code = problem.getProperties() == null
+                ? null
+                : problem.getProperties().get("code");
+        if (!(code instanceof String codeValue) || codeValue.isBlank()) {
+            problem.setProperty("code", ApiContract.HTTP_ERROR_CODE);
+        }
+    }
+
     private List<ValidationViolation> violations(MethodArgumentNotValidException exception) {
         return exception.getBindingResult().getAllErrors().stream()
                 .map(this::toViolation)

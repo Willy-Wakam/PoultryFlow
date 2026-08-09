@@ -68,7 +68,7 @@ public class OpenApiConfiguration {
                 .items(new Schema<>()
                         .$ref("#/components/schemas/"
                                 + ApiContract.VALIDATION_VIOLATION_SCHEMA)));
-        schema.setRequired(List.of("type", "title", "status", "detail", "instance", "code"));
+        schema.setRequired(List.of("status", "code"));
         return schema;
     }
 

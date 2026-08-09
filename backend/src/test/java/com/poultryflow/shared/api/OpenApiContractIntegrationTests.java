@@ -1,6 +1,7 @@
 package com.poultryflow.shared.api;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -41,6 +42,8 @@ class OpenApiContractIntegrationTests {
                 .andExpect(jsonPath("$.components.schemas.ProblemDetail.properties.detail").exists())
                 .andExpect(jsonPath("$.components.schemas.ProblemDetail.properties.instance").exists())
                 .andExpect(jsonPath("$.components.schemas.ProblemDetail.properties.code").exists())
+                .andExpect(jsonPath("$.components.schemas.ProblemDetail.required")
+                        .value(containsInAnyOrder("status", "code")))
                 .andExpect(jsonPath("$.components.schemas.ProblemDetail.properties.violations.items['$ref']")
                         .value("#/components/schemas/ValidationViolation"))
                 .andExpect(jsonPath("$.components.schemas.ValidationViolation.properties.field").exists())
