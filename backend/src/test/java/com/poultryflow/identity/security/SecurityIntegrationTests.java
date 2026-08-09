@@ -35,6 +35,7 @@ import org.springframework.web.context.WebApplicationContext;
 class SecurityIntegrationTests {
 
     private static final String TEST_API_PATH = "/api/v1/test/security";
+    private static final String UNLISTED_TEST_PATH = "/test/security-fallback";
 
     @Autowired
     private WebApplicationContext webApplicationContext;
@@ -52,8 +53,11 @@ class SecurityIntegrationTests {
     }
 
     @Test
-    void keepsHealthEndpointPublic() throws Exception {
+    void keepsDocumentedInfrastructureEndpointsPublic() throws Exception {
         mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk());
     }
 
@@ -79,6 +83,25 @@ class SecurityIntegrationTests {
                 .andReturn();
 
         assertThat(result.getRequest().getSession(false)).isNull();
+    }
+
+    @Test
+    void returnsSafeProblemDetailForUnauthenticatedUnlistedRoute() throws Exception {
+        mockMvc.perform(get(UNLISTED_TEST_PATH).accept(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.code").value(ApiContract.AUTHENTICATION_REQUIRED_CODE))
+                .andExpect(jsonPath("$.exception").doesNotExist())
+                .andExpect(jsonPath("$.trace").doesNotExist());
+    }
+
+    @Test
+    void allowsAuthenticatedJwtOnUnlistedRouteWithoutRoleMapping() throws Exception {
+        mockMvc.perform(get(UNLISTED_TEST_PATH).with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("authenticated"));
     }
 
     @Test
@@ -108,6 +131,11 @@ class SecurityIntegrationTests {
 
         @GetMapping(TEST_API_PATH)
         Map<String, String> authenticated() {
+            return Map.of("status", "authenticated");
+        }
+
+        @GetMapping(UNLISTED_TEST_PATH)
+        Map<String, String> authenticatedFallback() {
             return Map.of("status", "authenticated");
         }
     }

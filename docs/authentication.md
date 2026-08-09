@@ -16,7 +16,8 @@ Keycloak realm: poultryflow
               | aud: poultryflow-api
               v
 Spring Boot Resource Server
-  protected: /api/v1/**
+  public: documented infrastructure endpoints only
+  protected: all other routes
 ```
 
 The browser client and API audience are separate Keycloak clients:
@@ -76,7 +77,7 @@ These routes are public:
 - `/v3/api-docs` and `/v3/api-docs/**`
 - `/swagger-ui.html` and `/swagger-ui/**`
 
-All `/api/v1/**` routes require an access token whose audience contains `poultryflow-api`. A missing or rejected token produces HTTP 401 with `application/problem+json`, `code: AUTHENTICATION_REQUIRED`, and `WWW-Authenticate: Bearer`.
+All other routes, including `/api/v1/**`, require an access token whose audience contains `poultryflow-api`. A missing or rejected token produces HTTP 401 with `application/problem+json`, `code: AUTHENTICATION_REQUIRED`, and `WWW-Authenticate: Bearer`. Role-based authorization remains deferred to US-006.
 
 ## Local realm import
 

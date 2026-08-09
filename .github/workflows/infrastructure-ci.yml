@@ -29,5 +29,28 @@ jobs:
         run: docker compose --env-file .env.example config --quiet
       - name: Validate Keycloak realm configuration
         run: jq empty infrastructure/keycloak/poultryflow-realm.json
+      - name: Validate Keycloak realm security settings
+        run: |
+          jq --exit-status '
+            [.clients[] | select(.clientId == "poultryflow-web")] as $web
+            | [
+                $web[0].protocolMappers[]
+                | select(.protocolMapper == "oidc-audience-mapper")
+              ] as $audienceMappers
+            | ($web | length) == 1
+              and ($web[0].publicClient == true)
+              and ($web[0].standardFlowEnabled == true)
+              and ($web[0].implicitFlowEnabled == false)
+              and ($web[0].directAccessGrantsEnabled == false)
+              and ($web[0].serviceAccountsEnabled == false)
+              and ($web[0].attributes["pkce.code.challenge.method"] == "S256")
+              and ([$web[0].redirectUris[] | select(contains("*"))] | length) == 0
+              and ([$web[0].webOrigins[] | select(contains("*"))] | length) == 0
+              and ($audienceMappers | length) == 1
+              and ($audienceMappers[0].config["included.client.audience"] == "poultryflow-api")
+              and ($audienceMappers[0].config["access.token.claim"] == "true")
+              and ($audienceMappers[0].config["id.token.claim"] == "false")
+              and (($audienceMappers[0].config["userinfo.token.claim"] // "false") == "false")
+          ' infrastructure/keycloak/poultryflow-realm.json
       - name: Validate infrastructure shell syntax
         run: bash -n infrastructure/postgres/init/01-create-keycloak-database.sh

@@ -27,7 +27,7 @@ public class SecurityConfiguration {
         http.authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(ApiContract.BUSINESS_API_BASE_PATH + "/**").authenticated()
-                        .anyRequest().permitAll())
+                        .anyRequest().authenticated())
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
                         ApiContract.BUSINESS_API_BASE_PATH + "/**"))
                 .sessionManagement(session -> session
