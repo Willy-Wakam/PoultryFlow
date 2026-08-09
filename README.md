@@ -21,8 +21,9 @@ See [docs/architecture.md](docs/architecture.md) for module ownership and depend
 - Frontend: React, TypeScript, Vite
 - Backend: Java 21, Spring Boot, Maven, Spring Web, Bean Validation, Actuator
 - Local infrastructure: Docker Compose, PostgreSQL 18.4, Keycloak 26.7.0
+- CI: GitHub Actions quality gates for backend, frontend, and infrastructure
 - Architecture: modular monolith and REST APIs
-- Planned infrastructure: Flyway, S3-compatible object storage, GitHub Actions
+- Planned infrastructure: Flyway, S3-compatible object storage
 - Planned offline support: PWA, IndexedDB/Dexie, idempotent synchronization
 
 ## Repository structure
@@ -33,6 +34,7 @@ PoultryFlow/
 ├── frontend/         React and Vite web application
 ├── infrastructure/   Local infrastructure scripts and documentation
 ├── docs/             Architecture documentation
+├── .github/workflows Automated quality gates
 ├── compose.yaml      PostgreSQL and Keycloak local services
 ├── .env.example      Development-only environment template
 ├── .editorconfig
@@ -45,7 +47,7 @@ PoultryFlow/
 - Docker Engine or Docker Desktop with Docker Compose v2
 - JDK 21
 - Maven 3.9 or later
-- Node.js 22.12 or later
+- Node.js 22.13 or later
 - npm 10 or later
 
 ## Initial setup
@@ -125,26 +127,41 @@ docker compose up -d
 Validate the local infrastructure configuration:
 
 ```bash
-docker compose config
-docker compose ps
+docker compose --env-file .env.example config --quiet
+bash -n infrastructure/postgres/init/01-create-keycloak-database.sh
 ```
 
 Backend tests and build:
 
 ```bash
 cd backend
-mvn test
-mvn verify
+mvn -B verify
 ```
 
-Frontend type checking and production build:
+`mvn -B verify` is the full backend quality gate and covers compilation, test compilation, tests, packaging, and verification. Use `mvn -B test` when you only need to run through the test phase locally.
+
+Frontend dependency, type, lint, formatting, and production build checks:
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run typecheck
+npm run lint
+npm run format:check
 npm run build
 ```
+
+Use `npm run format` from `frontend/` to apply the configured frontend formatting rules.
+
+## CI quality gates
+
+GitHub Actions runs on pull requests targeting `dev` or `main` and on direct pushes to those branches. The workflows expose these checks:
+
+- `Backend CI / Backend quality gates`: Java 21 compilation, tests, and Maven verification.
+- `Frontend CI / Frontend quality gates`: deterministic dependency installation, TypeScript checking, ESLint, Prettier verification, and the Vite production build on Node.js 22.
+- `Infrastructure CI / Infrastructure quality gates`: static Docker Compose validation and shell syntax validation.
+
+The active repository ruleset requires changes to `dev` and `main` to arrive through a pull request. All three quality gates must pass against an up-to-date target branch before merge; no human approval is required.
 
 ## Development and production
 

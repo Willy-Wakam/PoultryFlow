@@ -14,7 +14,8 @@ export function App() {
         <p className="eyebrow">Farm operations</p>
         <h1 id="page-title">PoultryFlow</h1>
         <p className="description">
-          A dependable farm management platform for connected poultry operations.
+          A dependable farm management platform for connected poultry
+          operations.
         </p>
         <BackendStatus />
       </section>
