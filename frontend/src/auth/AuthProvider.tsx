@@ -25,35 +25,53 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return
       }
 
-      setState(
-        keycloakClient.isAuthenticated()
-          ? {
-              status: 'authenticated',
-              username: keycloakClient.username(),
-              roles: keycloakClient.roles(),
-            }
-          : { status: 'unauthenticated', roles: [] },
-      )
+      if (keycloakClient.isAuthenticated()) {
+        keycloakClient.synchronizeAuthorizationSnapshot()
+        setState({
+          status: 'authenticated',
+          username: keycloakClient.username(),
+          roles: keycloakClient.roles(),
+        })
+      } else {
+        setState({ status: 'unauthenticated', roles: [] })
+      }
     }
 
     const showAuthenticationError = () => {
-      keycloakClient.clearToken()
+      keycloakClient.clearLocalSession()
       if (active) {
         setState({ status: 'error', roles: [] })
+      }
+    }
+
+    const showSessionExpired = () => {
+      if (active) {
+        setState({ status: 'expired', roles: [] })
       }
     }
 
     const refreshExpiredToken = () => {
       void keycloakClient
         .refreshToken()
-        .then(showCurrentState)
-        .catch(showAuthenticationError)
+        .then(() => {
+          if (keycloakClient.isAuthenticated()) {
+            showCurrentState()
+          } else {
+            keycloakClient.expireSession()
+            showSessionExpired()
+          }
+        })
+        .catch(() => {
+          keycloakClient.expireSession()
+          showSessionExpired()
+        })
     }
 
     keycloakClient.setEvents({
       onAuthenticated: showCurrentState,
       onAuthenticationError: showAuthenticationError,
       onLoggedOut: showCurrentState,
+      onSessionExpired: showSessionExpired,
       onTokenExpired: refreshExpiredToken,
     })
 
@@ -91,7 +109,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         try {
           await keycloakClient.logout()
         } catch {
-          keycloakClient.clearToken()
+          keycloakClient.clearLocalSession()
           setState({ status: 'error', roles: [] })
         }
       },
