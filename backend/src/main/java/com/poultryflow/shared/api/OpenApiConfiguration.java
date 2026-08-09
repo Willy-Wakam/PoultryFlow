@@ -12,7 +12,10 @@ import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.parameters.HeaderParameter;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.util.List;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -26,7 +29,8 @@ public class OpenApiConfiguration {
                 .addSchemas(ApiContract.VALIDATION_VIOLATION_SCHEMA, validationViolationSchema())
                 .addSchemas(ApiContract.PROBLEM_DETAIL_SCHEMA, problemDetailSchema())
                 .addParameters(ApiContract.IDEMPOTENCY_KEY_PARAMETER, idempotencyKeyParameter())
-                .addResponses(ApiContract.PROBLEM_RESPONSE, problemResponse());
+                .addResponses(ApiContract.PROBLEM_RESPONSE, problemResponse())
+                .addSecuritySchemes(ApiContract.BEARER_AUTH_SCHEME, bearerAuthScheme());
 
         return new OpenAPI()
                 .info(new Info()
@@ -34,6 +38,22 @@ public class OpenApiConfiguration {
                         .version("v1")
                         .description("REST API contract for PoultryFlow farm management operations."))
                 .components(components);
+    }
+
+    @Bean
+    OpenApiCustomizer authenticatedBusinessApiCustomizer() {
+        return openApi -> {
+            if (openApi.getPaths() == null) {
+                return;
+            }
+
+            openApi.getPaths().forEach((path, pathItem) -> {
+                if (path.startsWith(ApiContract.BUSINESS_API_BASE_PATH + "/")) {
+                    pathItem.readOperations().forEach(operation -> operation.addSecurityItem(
+                            new SecurityRequirement().addList(ApiContract.BEARER_AUTH_SCHEME)));
+                }
+            });
+        };
     }
 
     private Schema<?> validationViolationSchema() {
@@ -91,5 +111,13 @@ public class OpenApiConfiguration {
                 .description("Request failed with a PoultryFlow problem detail.")
                 .content(new Content()
                         .addMediaType(MediaType.APPLICATION_PROBLEM_JSON_VALUE, problemMediaType));
+    }
+
+    private SecurityScheme bearerAuthScheme() {
+        return new SecurityScheme()
+                .type(SecurityScheme.Type.HTTP)
+                .scheme("bearer")
+                .bearerFormat("JWT")
+                .description("Keycloak access token for the PoultryFlow API audience.");
     }
 }

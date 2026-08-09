@@ -1,3 +1,4 @@
+import { AuthenticationPanel } from '../auth/AuthenticationPanel'
 import { BackendStatus } from '../components/BackendStatus'
 
 export function App() {
@@ -17,7 +18,10 @@ export function App() {
           A dependable farm management platform for connected poultry
           operations.
         </p>
-        <BackendStatus />
+        <div className="application-statuses">
+          <AuthenticationPanel />
+          <BackendStatus />
+        </div>
       </section>
     </main>
   )

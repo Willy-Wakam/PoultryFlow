@@ -42,5 +42,7 @@ jobs:
         run: npm run lint
       - name: Check frontend formatting
         run: npm run format:check
+      - name: Test frontend
+        run: npm run test
       - name: Build frontend
         run: npm run build
