@@ -4,7 +4,7 @@ PoultryFlow is a web-based poultry farm management platform for a farm in Camero
 
 ## Project status
 
-PoultryFlow is in its MVP foundation phase. The repository contains runnable backend and frontend applications, documented modular-monolith boundaries, a Docker Compose local development stack, and Keycloak/OIDC authentication. Role-based authorization, business features, offline synchronization, and production deployment automation have not been implemented yet.
+PoultryFlow is in its MVP foundation phase. The repository contains runnable backend and frontend applications, documented modular-monolith boundaries, a Docker Compose local development stack, Keycloak/OIDC authentication, and coarse role-based authorization. Business features, farm-scoped membership, offline synchronization, and production deployment automation have not been implemented yet.
 
 IoT integrations are explicitly out of scope.
 
@@ -80,7 +80,7 @@ Local ports are:
 
 The host ports for PostgreSQL and Keycloak can be changed in `.env`. The backend does not connect to PostgreSQL yet. It uses Keycloak's public issuer and JWK metadata only when validating bearer access tokens, so backend startup and automated tests do not require a running identity server.
 
-Keycloak imports the `poultryflow` realm on first startup. Open `http://localhost:8081/admin/`, use the local bootstrap administrator configured in `.env`, select the `poultryflow` realm, and create a local development user. Set a local password without adding that user or credential to repository files. See [docs/authentication.md](docs/authentication.md) for the exact flow and realm-reset warning.
+Keycloak imports the `poultryflow` realm on first startup. Open `http://localhost:8081/admin/`, use the local bootstrap administrator configured in `.env`, select the `poultryflow` realm, and create a local development user. Set a local password, then assign a `poultryflow-api` client role from the user's **Role mapping** tab without adding that user, credential, or assignment to repository files. See [docs/authentication.md](docs/authentication.md) for the exact flow and realm-reset warning.
 
 ## Run the backend
 
@@ -104,7 +104,7 @@ With the backend running, access:
 - Generated OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 
-MVP business endpoints use the `/api/v1` prefix and require a Keycloak access token with the `poultryflow-api` audience. See [docs/api-contract.md](docs/api-contract.md) for Bearer authentication, versioning, ProblemDetail errors, the `Idempotency-Key` convention, and contract-evolution rules.
+MVP business endpoints use the `/api/v1` prefix and require a Keycloak access token with the `poultryflow-api` audience plus any role required by the operation. See [docs/api-contract.md](docs/api-contract.md) for Bearer authentication, role authorization, versioning, ProblemDetail errors, the `Idempotency-Key` convention, and contract-evolution rules.
 
 ## Run the frontend
 
@@ -173,7 +173,7 @@ GitHub Actions runs on pull requests targeting `dev` or `main` and on direct pus
 
 - `Backend CI / Backend quality gates`: Java 21 compilation, tests, and Maven verification.
 - `Frontend CI / Frontend quality gates`: deterministic dependency installation, TypeScript checking, ESLint, Prettier verification, authentication tests, and the Vite production build on Node.js 22.
-- `Infrastructure CI / Infrastructure quality gates`: static Docker Compose, Keycloak realm JSON, and shell syntax validation.
+- `Infrastructure CI / Infrastructure quality gates`: static Docker Compose, Keycloak realm JSON and security semantics, and shell syntax validation.
 
 The active repository ruleset requires changes to `dev` and `main` to arrive through a pull request. All three quality gates must pass against an up-to-date target branch before merge; no human approval is required.
 

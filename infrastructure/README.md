@@ -31,9 +31,10 @@ The imported realm defines:
 - `poultryflow-web`, a public browser client using Standard Authorization Code Flow with PKCE S256;
 - exact localhost redirect URIs and the `http://localhost:5173` web origin;
 - `poultryflow-api`, a bearer-only logical API audience;
-- an audience mapper that adds `poultryflow-api` to frontend access tokens.
+- an audience mapper that adds `poultryflow-api` to frontend access tokens;
+- `OWNER`, `MANAGER`, `STAFF`, `ACCOUNTANT`, and `VIEWER` as non-composite `poultryflow-api` client roles emitted through Keycloak's standard client-role claim when assigned.
 
-It does not contain users, passwords, PoultryFlow roles, client secrets, or production configuration.
+It does not contain users, passwords, role assignments, client secrets, or production configuration.
 
 Keycloak startup import skips a realm that already exists. This preserves local state during ordinary restarts, but it also means changes to the committed JSON are not applied automatically to an existing local `poultryflow` realm.
 
