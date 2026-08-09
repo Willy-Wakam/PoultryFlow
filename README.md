@@ -4,7 +4,7 @@ PoultryFlow is a web-based poultry farm management platform for a farm in Camero
 
 ## Project status
 
-PoultryFlow is in its MVP foundation phase. This repository currently contains runnable backend and frontend skeletons plus the documented modular-monolith boundaries. Database infrastructure, authentication, business features, offline synchronization, and deployment automation have not been implemented yet.
+PoultryFlow is in its MVP foundation phase. The repository contains runnable backend and frontend skeletons, documented modular-monolith boundaries, and a Docker Compose local development stack with PostgreSQL and Keycloak. Authentication integration, business features, offline synchronization, and production deployment automation have not been implemented yet.
 
 IoT integrations are explicitly out of scope.
 
@@ -14,17 +14,16 @@ PoultryFlow is a monorepo containing a React web application and a Spring Boot R
 
 The frontend uses the backend Actuator health endpoint as a development smoke check. Vite proxies `/actuator` requests to Spring Boot, so no application-wide CORS policy is needed for this initial local workflow.
 
-See [docs/architecture.md](docs/architecture.md) for module ownership and dependency rules.
+See [docs/architecture.md](docs/architecture.md) for module ownership and dependency rules and [infrastructure/README.md](infrastructure/README.md) for local service details.
 
 ## Technology stack
 
 - Frontend: React, TypeScript, Vite
 - Backend: Java 21, Spring Boot, Maven, Spring Web, Bean Validation, Actuator
+- Local infrastructure: Docker Compose, PostgreSQL 18.4, Keycloak 26.7.0
 - Architecture: modular monolith and REST APIs
-- Planned infrastructure: PostgreSQL, Keycloak, Flyway, S3-compatible object storage, Docker Compose, GitHub Actions
+- Planned infrastructure: Flyway, S3-compatible object storage, GitHub Actions
 - Planned offline support: PWA, IndexedDB/Dexie, idempotent synchronization
-
-The planned technologies are listed for architectural context; only the frontend and backend foundation is available in this story.
 
 ## Repository structure
 
@@ -32,8 +31,10 @@ The planned technologies are listed for architectural context; only the frontend
 PoultryFlow/
 ├── backend/          Spring Boot application and module packages
 ├── frontend/         React and Vite web application
-├── infrastructure/   Scope and ownership notes for future infrastructure
+├── infrastructure/   Local infrastructure scripts and documentation
 ├── docs/             Architecture documentation
+├── compose.yaml      PostgreSQL and Keycloak local services
+├── .env.example      Development-only environment template
 ├── .editorconfig
 ├── .gitignore
 └── README.md
@@ -41,14 +42,44 @@ PoultryFlow/
 
 ## Prerequisites
 
+- Docker Engine or Docker Desktop with Docker Compose v2
 - JDK 21
 - Maven 3.9 or later
 - Node.js 22.12 or later
 - npm 10 or later
 
-PostgreSQL and Keycloak are not required for the current foundation.
+## Initial setup
+
+Create the ignored local environment file:
+
+```bash
+cp .env.example .env
+```
+
+The committed values are safe examples for local development only. Do not reuse them in production.
+
+Start and inspect PostgreSQL and Keycloak:
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
+Local ports are:
+
+| Component | URL or port |
+| --- | --- |
+| React/Vite | `http://localhost:5173` |
+| Spring Boot | `http://localhost:8080` |
+| Keycloak | `http://localhost:8081` |
+| Keycloak health | `http://localhost:9001/health/ready` |
+| PostgreSQL | `localhost:5432` |
+
+The host ports for PostgreSQL and Keycloak can be changed in `.env`. The current backend does not connect to either service yet; the Compose stack prepares those dependencies for later stories without adding persistence or authentication behavior.
 
 ## Run the backend
+
+With the local infrastructure running:
 
 ```bash
 cd backend
@@ -73,7 +104,30 @@ npm run dev
 
 Open `http://localhost:5173`. The page displays the backend health reported through the Vite development proxy. If the backend is stopped, the page reports that it is unavailable without failing to render.
 
+## Stop local infrastructure
+
+Normal shutdown keeps PostgreSQL and Keycloak data in the Docker volume:
+
+```bash
+docker compose down
+```
+
+To start the same persisted environment again:
+
+```bash
+docker compose up -d
+```
+
+`docker compose down --volumes` is a destructive reset that permanently removes both local databases. It is not part of normal shutdown. See [infrastructure/README.md](infrastructure/README.md) before using it.
+
 ## Run checks
+
+Validate the local infrastructure configuration:
+
+```bash
+docker compose config
+docker compose ps
+```
 
 Backend tests and build:
 
@@ -91,6 +145,10 @@ npm install
 npm run typecheck
 npm run build
 ```
+
+## Development and production
+
+`compose.yaml` and `.env.example` define a development profile only. Keycloak runs with `start-dev`, sample credentials are intentionally weak, and ports are exposed to the workstation. Production requires separate deployment configuration, managed secrets, TLS, backups, and hardened network access; no production credentials or deployment stack belong in this repository foundation.
 
 ## Branch strategy
 
