@@ -12,7 +12,7 @@ services:
       KEYCLOAK_DB_USER: "${KEYCLOAK_DB_USER:?Set KEYCLOAK_DB_USER in .env}"
       KEYCLOAK_DB_PASSWORD: "${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}"
     ports:
-      - "${POSTGRES_PORT:?Set POSTGRES_PORT in .env}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:?Set POSTGRES_PORT in .env}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./infrastructure/postgres/init/01-create-keycloak-database.sh:/docker-entrypoint-initdb.d/01-create-keycloak-database.sh:ro
@@ -41,8 +41,8 @@ services:
       KC_METRICS_ENABLED: "true"
       KC_HOSTNAME: "http://localhost:${KEYCLOAK_PORT:?Set KEYCLOAK_PORT in .env}"
     ports:
-      - "${KEYCLOAK_PORT:?Set KEYCLOAK_PORT in .env}:8080"
-      - "${KEYCLOAK_MANAGEMENT_PORT:?Set KEYCLOAK_MANAGEMENT_PORT in .env}:9000"
+      - "127.0.0.1:${KEYCLOAK_PORT:?Set KEYCLOAK_PORT in .env}:8080"
+      - "127.0.0.1:${KEYCLOAK_MANAGEMENT_PORT:?Set KEYCLOAK_MANAGEMENT_PORT in .env}:9000"
     healthcheck:
       test:
         - CMD
