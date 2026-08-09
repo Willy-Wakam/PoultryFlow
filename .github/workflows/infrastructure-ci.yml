@@ -41,6 +41,7 @@ jobs:
             | (.roles.client["poultryflow-api"] // []) as $apiRoles
             | ($web | length) == 1
               and ($api | length) == 1
+              and (.resetPasswordAllowed == true)
               and ($web[0].publicClient == true)
               and ($web[0].standardFlowEnabled == true)
               and ($web[0].implicitFlowEnabled == false)

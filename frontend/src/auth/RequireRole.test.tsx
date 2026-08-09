@@ -17,6 +17,7 @@ function authenticationWithRoles(
     hasAnyRole: (requiredRoles) =>
       requiredRoles.some((role) => roles.includes(role)),
     login: vi.fn(),
+    recoverCredentials: vi.fn(),
     logout: vi.fn(),
   }
 }

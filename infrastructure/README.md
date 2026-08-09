@@ -33,8 +33,15 @@ The imported realm defines:
 - `poultryflow-api`, a bearer-only logical API audience;
 - an audience mapper that adds `poultryflow-api` to frontend access tokens;
 - `OWNER`, `MANAGER`, `STAFF`, `ACCOUNTANT`, and `VIEWER` as non-composite `poultryflow-api` client roles emitted through Keycloak's standard client-role claim when assigned.
+- Keycloak's Reset credentials flow for password recovery.
 
 It does not contain users, passwords, role assignments, client secrets, or production configuration.
+
+## Credential recovery email
+
+The development realm enables password recovery, but the committed realm and normal Compose stack intentionally contain no SMTP server, provider credentials, or permanent email catcher. Keycloak can deliver time-limited reset links only after an SMTP provider is configured for the environment. Production SMTP settings and secrets belong to deployment configuration, not the realm import or `.env.example`.
+
+PoultryFlow never sends passwords or reset email itself. Keycloak owns the recovery screen, neutral account messaging, and email workflow. SMS recovery is not configured for the MVP, and recovery requires network access.
 
 Keycloak startup import skips a realm that already exists. This preserves local state during ordinary restarts, but it also means changes to the committed JSON are not applied automatically to an existing local `poultryflow` realm.
 

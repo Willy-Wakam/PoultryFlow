@@ -78,6 +78,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
           setState({ status: 'error', roles: [] })
         }
       },
+      async recoverCredentials() {
+        setState({ status: 'initializing', roles: [] })
+        try {
+          await keycloakClient.recoverCredentials()
+        } catch {
+          setState({ status: 'error', roles: [] })
+        }
+      },
       async logout() {
         setState({ status: 'unauthenticated', roles: [] })
         try {
