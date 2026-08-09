@@ -14,12 +14,12 @@ PoultryFlow is a monorepo containing a React web application and a Spring Boot R
 
 The frontend uses the backend Actuator health endpoint as a development smoke check. Vite proxies `/actuator` requests to Spring Boot, so no application-wide CORS policy is needed for this initial local workflow.
 
-See [docs/architecture.md](docs/architecture.md) for module ownership and dependency rules and [infrastructure/README.md](infrastructure/README.md) for local service details.
+See [docs/architecture.md](docs/architecture.md) for module ownership and dependency rules, [docs/api-contract.md](docs/api-contract.md) for REST contract conventions, and [infrastructure/README.md](infrastructure/README.md) for local service details.
 
 ## Technology stack
 
 - Frontend: React, TypeScript, Vite
-- Backend: Java 21, Spring Boot, Maven, Spring Web, Bean Validation, Actuator
+- Backend: Java 21, Spring Boot, Maven, Spring Web, Bean Validation, Actuator, Springdoc/OpenAPI
 - Local infrastructure: Docker Compose, PostgreSQL 18.4, Keycloak 26.7.0
 - CI: GitHub Actions quality gates for backend, frontend, and infrastructure
 - Architecture: modular monolith and REST APIs
@@ -81,7 +81,7 @@ The host ports for PostgreSQL and Keycloak can be changed in `.env`. The current
 
 ## Run the backend
 
-With the local infrastructure running:
+The backend currently starts independently of PostgreSQL and Keycloak:
 
 ```bash
 cd backend
@@ -93,6 +93,15 @@ The API starts on `http://localhost:8080`. Verify it with:
 ```bash
 curl http://localhost:8080/actuator/health
 ```
+
+## API documentation
+
+With the backend running, access:
+
+- Generated OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+
+MVP business endpoints use the `/api/v1` prefix. See [docs/api-contract.md](docs/api-contract.md) for versioning, ProblemDetail errors, the `Idempotency-Key` convention, and contract-evolution rules.
 
 ## Run the frontend
 
