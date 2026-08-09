@@ -135,9 +135,10 @@ Backend tests and build:
 
 ```bash
 cd backend
-mvn test
-mvn verify
+mvn -B verify
 ```
+
+`mvn -B verify` is the full backend quality gate and covers compilation, test compilation, tests, packaging, and verification. Use `mvn -B test` when you only need to run through the test phase locally.
 
 Frontend dependency, type, lint, formatting, and production build checks:
 

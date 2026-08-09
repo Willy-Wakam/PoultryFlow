@@ -35,7 +35,5 @@ jobs:
           java-version: "21"
           cache: maven
           cache-dependency-path: backend/pom.xml
-      - name: Run backend tests
-        run: mvn -B test
       - name: Verify backend build
         run: mvn -B verify
