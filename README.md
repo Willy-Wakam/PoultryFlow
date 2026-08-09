@@ -21,8 +21,9 @@ See [docs/architecture.md](docs/architecture.md) for module ownership and depend
 - Frontend: React, TypeScript, Vite
 - Backend: Java 21, Spring Boot, Maven, Spring Web, Bean Validation, Actuator
 - Local infrastructure: Docker Compose, PostgreSQL 18.4, Keycloak 26.7.0
+- CI: GitHub Actions quality gates for backend, frontend, and infrastructure
 - Architecture: modular monolith and REST APIs
-- Planned infrastructure: Flyway, S3-compatible object storage, GitHub Actions
+- Planned infrastructure: Flyway, S3-compatible object storage
 - Planned offline support: PWA, IndexedDB/Dexie, idempotent synchronization
 
 ## Repository structure
@@ -33,6 +34,7 @@ PoultryFlow/
 ├── frontend/         React and Vite web application
 ├── infrastructure/   Local infrastructure scripts and documentation
 ├── docs/             Architecture documentation
+├── .github/workflows Automated quality gates
 ├── compose.yaml      PostgreSQL and Keycloak local services
 ├── .env.example      Development-only environment template
 ├── .editorconfig
@@ -45,7 +47,7 @@ PoultryFlow/
 - Docker Engine or Docker Desktop with Docker Compose v2
 - JDK 21
 - Maven 3.9 or later
-- Node.js 22.12 or later
+- Node.js 22.13 or later
 - npm 10 or later
 
 ## Initial setup
@@ -125,8 +127,8 @@ docker compose up -d
 Validate the local infrastructure configuration:
 
 ```bash
-docker compose config
-docker compose ps
+docker compose --env-file .env.example config --quiet
+bash -n infrastructure/postgres/init/01-create-keycloak-database.sh
 ```
 
 Backend tests and build:
@@ -137,14 +139,28 @@ mvn test
 mvn verify
 ```
 
-Frontend type checking and production build:
+Frontend dependency, type, lint, formatting, and production build checks:
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run typecheck
+npm run lint
+npm run format:check
 npm run build
 ```
+
+Use `npm run format` from `frontend/` to apply the configured frontend formatting rules.
+
+## CI quality gates
+
+GitHub Actions runs on pull requests targeting `dev` or `main` and on direct pushes to those branches. The workflows expose these checks:
+
+- `Backend CI / Backend quality gates`: Java 21 compilation, tests, and Maven verification.
+- `Frontend CI / Frontend quality gates`: deterministic dependency installation, TypeScript checking, ESLint, Prettier verification, and the Vite production build on Node.js 22.
+- `Infrastructure CI / Infrastructure quality gates`: static Docker Compose validation and shell syntax validation.
+
+Pull requests are not considered ready for merge while a quality gate is failing. Repository branch protection is configured separately; these workflows only provide the status checks that branch rules can require.
 
 ## Development and production
 
