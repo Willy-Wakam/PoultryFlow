@@ -1,0 +1,112 @@
+# PoultryFlow API contract
+
+## API style
+
+PoultryFlow uses REST for the MVP. Business resources are represented as JSON over HTTP and are documented by the OpenAPI document generated from the running Spring Boot application.
+
+## Base path
+
+MVP business endpoints use the `/api/v1` prefix. Business controllers remain inside the module that owns the behavior; the shared API package contains only cross-cutting contract primitives.
+
+Infrastructure and documentation endpoints do not use the business prefix:
+
+- `/actuator/health`
+- `/v3/api-docs`
+- `/swagger-ui/`
+
+## Authentication
+
+All `/api/v1/**` operations require a Keycloak access token sent as:
+
+```http
+Authorization: Bearer <access-token>
+```
+
+Spring Security validates the signature, temporal claims, `poultryflow` realm issuer, and `poultryflow-api` audience. ID tokens are not accepted as API credentials. Known `poultryflow-api` client roles are mapped to Spring Security authorities; realm roles, other-client roles, and unknown names are ignored.
+
+The reusable OpenAPI security scheme is `BearerAuth`, represented as HTTP Bearer with JWT format. A contract customizer applies it to documented `/api/v1/**` operations without marking the public infrastructure and documentation routes as protected.
+
+These endpoints remain public:
+
+- `/actuator/health`
+- `/v3/api-docs` and `/v3/api-docs/**`
+- `/swagger-ui.html` and `/swagger-ui/**`
+
+Role checks belong at controller or use-case boundaries. Read-like operations may allow `VIEWER`, `STAFF`, `MANAGER`, and `OWNER`, while operational mutations exclude `VIEWER`. Each business module must define its actual policy when its endpoints are implemented. `ACCOUNTANT` is part of the role vocabulary, but finance permissions are deferred to finance stories. Future farm-scoped operations must also enforce `FarmMembership`.
+
+## Versioning
+
+The URI segment is the major API version. Additive, backward-compatible fields and operations may be introduced within v1. Breaking changes must be documented before implementation and normally require a new major prefix such as `/api/v2`.
+
+Removing fields or operations, changing their meaning incompatibly, or silently changing validation and response semantics is not allowed within v1. Deprecations must identify a migration path and coexistence period before removal.
+
+## Content types
+
+- Normal JSON resources use `application/json`.
+- Problem responses use `application/problem+json`.
+
+## Error contract
+
+Errors follow Spring's RFC 9457 `ProblemDetail` model rather than a separate proprietary envelope.
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `type` | No | URI reference identifying the problem category |
+| `title` | No | Stable human-readable problem summary |
+| `status` | Yes | HTTP status code |
+| `detail` | No | Client-safe explanation for this occurrence |
+| `instance` | No | URI reference identifying the request occurrence |
+| `code` | Yes | Stable PoultryFlow machine-readable error code |
+| `violations` | No | Structured validation failures when applicable |
+
+Each validation violation contains `field` and `message`. Responses must never expose stack traces, Java exception names, database details, credentials, or other sensitive internals.
+
+RFC 9457 permits its standard members to be omitted or defaulted, so the reusable schema requires only the fields PoultryFlow guarantees for every handled problem: `status` and `code`. The runtime handler uses `VALIDATION_FAILED` for validation errors and preserves that specific code. Other inherited Spring MVC ProblemDetail responses receive the safe `HTTP_ERROR` fallback when no code is already present.
+
+An unauthenticated request to `/api/v1/**` receives HTTP 401, `application/problem+json`, `WWW-Authenticate: Bearer`, and the stable code `AUTHENTICATION_REQUIRED`. The response uses a fixed client-safe detail and never exposes the underlying Spring Security or OIDC exception.
+
+An authenticated request that fails a role policy receives HTTP 403, `application/problem+json`, and the stable code `AUTHORIZATION_DENIED`. Authentication and authorization failures remain distinct, and neither response exposes token claims or framework exceptions. Domain-specific error codes belong to future module stories.
+
+## Idempotency
+
+`Idempotency-Key` is the request-header convention for retryable non-idempotent writes:
+
+- The client generates an opaque unique operation identifier, normally a UUID.
+- A retry of the same logical operation reuses the same key.
+- A key must never be reused for a different logical operation.
+- Eligible POST and PATCH mutation endpoints may require the header.
+- GET requests do not require it.
+- Naturally idempotent operations do not automatically require it.
+- A synchronized client operation may use its client-generated `operationId` UUID as the header value.
+
+Future endpoint implementations must make the same key with the same logical request safe to retry and reproduce the original successful outcome instead of applying the operation twice. The same key with a different logical request must be rejected with HTTP 409 and the common ProblemDetail response.
+
+US-004 defines this contract only. Request hashing, persistence, replay storage, locking, offline queues, and synchronization processing remain owned by later stories.
+
+## Reusable OpenAPI components
+
+The generated document publishes these reusable components for future module controllers:
+
+- `ProblemDetail`: standard problem fields plus PoultryFlow extensions.
+- `ValidationViolation`: structured invalid field and reason.
+- `IdempotencyKey`: reusable `Idempotency-Key` header parameter.
+- `ProblemResponse`: reusable `application/problem+json` response.
+- `BearerAuth`: reusable HTTP Bearer JWT security scheme for business operations.
+
+Future operations should reference these components rather than duplicate their definitions.
+
+## OpenAPI publication
+
+Start the backend without PostgreSQL or Keycloak:
+
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+The generated contract and documentation UI are available at:
+
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+
+The metadata title is `PoultryFlow API` and the API version is `v1`. No production server URL or placeholder business operation is added by this baseline.
