@@ -34,6 +34,19 @@ These endpoints remain public:
 
 Role checks belong at controller or use-case boundaries. Read-like operations may allow `VIEWER`, `STAFF`, `MANAGER`, and `OWNER`, while operational mutations exclude `VIEWER`. Each business module must define its actual policy when its endpoints are implemented. `ACCOUNTANT` is part of the role vocabulary, but finance permissions are deferred to finance stories. Future farm-scoped operations must also enforce `FarmMembership`.
 
+## Farm profile
+
+The first business resource is the current farm profile:
+
+| Method | Path | Role | Behavior |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/farms/current` | `OWNER` | Returns the current profile or `404` with `FARM_PROFILE_NOT_CONFIGURED` |
+| `PUT` | `/api/v1/farms/current` | `OWNER` | Creates the profile when absent or updates the same farm when present |
+
+The request contains `name`, optional `contactEmail` and `contactPhone`, `timezone`, and optional `countryCode` and `currencyCode`. Missing country and currency values default to `CM` and `XAF`; stored codes are uppercase. Timezones, countries, and currencies must be real IANA, ISO-3166 alpha-2, and ISO-4217 values. Responses add the farm UUID, optimistic-lock version, and UTC creation/update timestamps.
+
+An identical `PUT` is a no-op: it preserves `updatedAt` and does not append another audit event. The endpoint returns safe field-oriented `400` validation problems, `401` and `403` security problems, `409` for concurrent or ambiguous resolution, and does not expose persistence entities. There is intentionally no farm list or delete operation in this MVP step.
+
 ## Versioning
 
 The URI segment is the major API version. Additive, backward-compatible fields and operations may be introduced within v1. Breaking changes must be documented before implementation and normally require a new major prefix such as `/api/v2`.
@@ -65,7 +78,7 @@ RFC 9457 permits its standard members to be omitted or defaulted, so the reusabl
 
 An unauthenticated request to `/api/v1/**` receives HTTP 401, `application/problem+json`, `WWW-Authenticate: Bearer`, and the stable code `AUTHENTICATION_REQUIRED`. The response uses a fixed client-safe detail and never exposes the underlying Spring Security or OIDC exception.
 
-An authenticated request that fails a role policy receives HTTP 403, `application/problem+json`, and the stable code `AUTHORIZATION_DENIED`. Authentication and authorization failures remain distinct, and neither response exposes token claims or framework exceptions. Domain-specific error codes belong to future module stories.
+An authenticated request that fails a role policy receives HTTP 403, `application/problem+json`, and the stable code `AUTHORIZATION_DENIED`. Authentication and authorization failures remain distinct, and neither response exposes token claims or framework exceptions. The farm profile adds `FARM_PROFILE_NOT_CONFIGURED`, `FARM_PROFILE_AMBIGUOUS`, and `CONCURRENT_MODIFICATION` as module-specific safe codes.
 
 ## Idempotency
 
@@ -97,9 +110,10 @@ Future operations should reference these components rather than duplicate their 
 
 ## OpenAPI publication
 
-Start the backend without PostgreSQL or Keycloak:
+Start PostgreSQL, then run the backend; Keycloak is needed only when a real bearer token is validated:
 
 ```bash
+docker compose up -d postgres
 cd backend
 mvn spring-boot:run
 ```

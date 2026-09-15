@@ -6,7 +6,7 @@ PoultryFlow uses Docker Compose to provide PostgreSQL and Keycloak for local dev
 
 | Service | Image | Purpose | Host ports |
 | --- | --- | --- | --- |
-| PostgreSQL | `postgres:18.4` | Persists the future PoultryFlow application database and Keycloak database | `5432` by default |
+| PostgreSQL | `postgres:18.4` | Persists the PoultryFlow application database and separate Keycloak database | `5432` by default |
 | Keycloak | `quay.io/keycloak/keycloak:26.7.0` | Runs the development identity server with the imported PoultryFlow realm | `8081` application, `9001` management by default |
 
 Image versions are pinned so that every developer runs the same service versions. Update them deliberately and verify persistence and health checks before merging an upgrade.
@@ -20,7 +20,17 @@ One PostgreSQL container keeps local operations simple while maintaining logical
 - `infrastructure/postgres/init/01-create-keycloak-database.sh` creates the Keycloak role and database only when the PostgreSQL volume is initialized for the first time.
 - The Compose-managed `postgres_data` volume stores both databases. Keycloak does not use its embedded development database.
 
-The Spring Boot application remains independent from PostgreSQL but validates Keycloak access tokens when protected API routes are called. Application datasource configuration and migrations remain deferred.
+The Spring Boot application connects to the PoultryFlow database using the application role. Flyway applies versioned migrations before Hibernate validates the schema; Keycloak continues to use its logically separate database and role.
+
+The backend defaults match `.env.example`. Workstation or deployment environments can override them without committing secrets:
+
+| Backend environment variable | Local default source |
+| --- | --- |
+| `POULTRYFLOW_DATABASE_URL` | `jdbc:postgresql://localhost:${POSTGRES_PORT}/${POSTGRES_DB}` |
+| `POULTRYFLOW_DATABASE_USERNAME` | `POSTGRES_USER` |
+| `POULTRYFLOW_DATABASE_PASSWORD` | `POSTGRES_PASSWORD` |
+
+Run migrations by starting the backend after PostgreSQL is healthy. Migration files live under `backend/src/main/resources/db/migration`; do not edit an applied migration or rely on Hibernate schema generation.
 
 ## PoultryFlow realm import
 

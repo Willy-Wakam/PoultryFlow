@@ -8,7 +8,7 @@ The web client communicates with the backend through REST APIs. Microservices ar
 
 ## Backend module boundaries
 
-The package below each module name is its ownership boundary. US-001 establishes only package markers; entities, repositories, controllers, and services will be introduced by their corresponding stories.
+The package below each module name is its ownership boundary. Business stories introduce entities, repositories, controllers, and services only inside the module that owns them.
 
 | Module | Owns |
 | --- | --- |
@@ -41,6 +41,14 @@ Cross-cutting API metadata, reusable OpenAPI components, and common ProblemDetai
 
 Infrastructure and documentation endpoints such as `/actuator/health`, `/v3/api-docs`, and `/swagger-ui/` remain outside the business API prefix. See [api-contract.md](api-contract.md) for versioning, errors, idempotency, and contract-evolution rules.
 
+## Persistence boundary
+
+PostgreSQL is the production-shaped persistence engine for business data. Spring Data JPA owns aggregate persistence, while Flyway is the only mechanism allowed to create or evolve the database schema. Hibernate runs with `ddl-auto=validate`, Open Session in View is disabled, and persisted timestamps use UTC. Integration tests run the same migrations against disposable PostgreSQL containers; no in-memory substitute is used.
+
+The `farm` module owns `Farm`, the tenant root. Storage permits multiple farm rows so it does not block the future membership model, but the current MVP resolves exactly one current farm. Zero rows means the profile is not configured; more than one row is treated as an unsafe ambiguous state and fails closed. A future `FarmMembership`-based resolver will replace this temporary rule without changing the aggregate's ownership.
+
+The `audit` module exposes a narrow append boundary while retaining its entities and repository as module internals. Farm profile creation and meaningful updates append immutable events in the same database transaction as the aggregate change. The database rejects updates and deletes to audit rows. Query APIs, audit screens, generalized entity listeners, and broader EPIC-09 traceability remain deferred.
+
 ## Authentication boundary
 
 Authentication spans the frontend application boundary and the backend `identity.security` package. The React application delegates browser login and credential recovery to Keycloak with Authorization Code Flow and PKCE S256. Keycloak owns the reset UI and email workflow; PoultryFlow has no password-reset API or credential storage. The Spring Boot application is an OAuth2 Resource Server that validates bearer access tokens for `/api/v1/**`; it is not an OAuth2 login client and has no backend client secret.
@@ -51,8 +59,12 @@ The current roles are coarse application permissions. A future `FarmMembership` 
 
 ## Frontend organization
 
-`src/app` owns application composition and global presentation. `src/auth` owns the Keycloak adapter, typed React authentication state, protected API request boundary, sign-in controls, and the non-persistent offline authorization snapshot. The snapshot contains only a subject and allowlisted roles; it is not an online session or a substitute for backend authorization. Reusable technical UI belongs in `src/components`. Business behavior will be grouped under `src/features` when feature stories begin, without pre-creating empty implementations.
+`src/app` owns application composition and global presentation. `src/auth` owns the Keycloak adapter, typed React authentication state, protected API request boundary, sign-in controls, and the non-persistent offline authorization snapshot. The snapshot contains only a subject and allowlisted roles; it is not an online session or a substitute for backend authorization. Reusable technical UI belongs in `src/components`, and business behavior is grouped by capability under `src/features`; the farm profile is under `src/features/farm`.
+
+TanStack Query owns online server state, while React Hook Form and Zod own farm-profile form state and client-side validation. The farm feature can call the backend only through `protectedApiRequest()`, and mutations are not retried automatically.
 
 ## Deferred architecture
 
-Docker Compose defines the local PostgreSQL and Keycloak services; Keycloak/OIDC authentication, credential recovery, coarse role-based authorization, and secure frontend session lifecycle are implemented; and GitHub Actions enforces repository quality gates. FarmMembership authorization, persistent audit storage, application datasource wiring, JPA persistence, Flyway business migrations, S3-compatible storage, PWA capabilities, IndexedDB/Dexie, and idempotent synchronization remain deferred to their owning stories. IoT, message brokers, Kubernetes, native mobile applications, and AI functionality are outside the MVP architecture.
+Docker Compose defines the local PostgreSQL and Keycloak services; Keycloak/OIDC authentication, credential recovery, coarse role-based authorization, secure frontend session lifecycle, farm-profile persistence, and a minimal append-only audit foundation are implemented; and GitHub Actions enforces repository quality gates. FarmMembership authorization, audit querying, S3-compatible storage, PWA capabilities, IndexedDB/Dexie, and idempotent synchronization remain deferred to their owning stories. IoT, message brokers, Kubernetes, native mobile applications, and AI functionality are outside the MVP architecture.
+
+Farm profile editing is online-only. It does not use the offline authorization snapshot, browser persistence, or a synchronization queue. Future offline records must be partitioned by both authorized user and farm and revalidated against authoritative membership when connectivity returns.

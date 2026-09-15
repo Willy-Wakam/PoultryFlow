@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.poultryflow.testing.PostgreSqlIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +25,7 @@ import org.springframework.web.context.WebApplicationContext;
         com.poultryflow.PoultryFlowApplication.class,
         OpenApiContractIntegrationTests.OpenApiTestConfiguration.class
 })
-class OpenApiContractIntegrationTests {
+class OpenApiContractIntegrationTests extends PostgreSqlIntegrationTest {
 
     @Autowired
     private WebApplicationContext webApplicationContext;
@@ -71,6 +72,21 @@ class OpenApiContractIntegrationTests {
                         .value("JWT"))
                 .andExpect(jsonPath(
                                 "$.paths['/api/v1/test/openapi'].get.security[0].BearerAuth")
+                        .isArray())
+                .andExpect(jsonPath("$.paths['/api/v1/farms/current'].get.responses['200']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/farms/current'].get.responses['404']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/farms/current'].put.requestBody")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/farms/current'].put.responses['200']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/farms/current'].put.responses['400']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/farms/current'].put.responses['409']")
+                        .exists())
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/farms/current'].put.security[0].BearerAuth")
                         .isArray());
     }
 

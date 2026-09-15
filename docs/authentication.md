@@ -112,7 +112,7 @@ These routes are public:
 
 All other routes, including `/api/v1/**`, require an access token whose audience contains `poultryflow-api`. A missing or rejected token produces HTTP 401 with `application/problem+json`, `code: AUTHENTICATION_REQUIRED`, and `WWW-Authenticate: Bearer`.
 
-An authenticated request that fails a role policy produces HTTP 403 with `application/problem+json` and `code: AUTHORIZATION_DENIED`. The response does not expose token data or Spring Security exceptions. The backend logs a warning with only `event=authorization_denied`, the authenticated principal, HTTP method, and request path for future audit integration; persistent audit storage is not implemented yet.
+An authenticated request that fails a role policy produces HTTP 403 with `application/problem+json` and `code: AUTHORIZATION_DENIED`. The response does not expose token data or Spring Security exceptions. The backend logs a warning with only `event=authorization_denied`, the authenticated principal, HTTP method, and request path for future audit integration. The audit module now persists farm-profile creation and update events only; durable authorization-denied events remain deferred.
 
 ## Local realm import
 
@@ -155,8 +155,14 @@ Authentication and credential recovery require network access to Keycloak. Recov
 
 While the page remains open, PoultryFlow keeps a non-secret authorization snapshot containing only the authenticated subject and allowlisted application roles. Successful authentication or token refresh replaces it. Session expiry retains it so future offline features can evaluate previously authorized data, while normal `RequireRole` guards continue to require an authenticated online session. Logout, a new sign-in attempt, and a user switch clear it. The snapshot is never written to browser storage and does not grant backend access. Future offline storage must bind cached data to the authorized subject and snapshot; it must never infer permission from cached UI state alone.
 
+## Farm profile authorization
+
+Both current farm profile operations require `OWNER` through backend method security. The React `RequireRole` guard hides the editor for unauthenticated, expired, or non-owner sessions, but this is only a usability boundary. Spring Security remains authoritative.
+
+Until `FarmMembership` is implemented, the backend resolves one current farm and fails closed if multiple farm rows make that resolution ambiguous. This is a temporary MVP rule, not authorization for arbitrary farm data.
+
 ## Deferred security work
 
-- A future farm-management story must constrain farm-scoped access with `FarmMembership`; coarse roles alone are insufficient.
+- A future farm-management story must replace single-farm resolution and constrain farm-scoped access with `FarmMembership`; coarse roles alone are insufficient.
 - The audit epic owns durable storage and querying of authorization-denied events.
 - Deployment-specific Keycloak session timeout values remain operational configuration; this story does not change the committed realm defaults.

@@ -4,7 +4,7 @@ PoultryFlow is a web-based poultry farm management platform for a farm in Camero
 
 ## Project status
 
-PoultryFlow is in its MVP foundation phase. The repository contains runnable backend and frontend applications, documented modular-monolith boundaries, a Docker Compose local development stack, Keycloak/OIDC authentication, and coarse role-based authorization. Business features, farm-scoped membership, offline synchronization, and production deployment automation have not been implemented yet.
+PoultryFlow is in its MVP foundation phase. The repository contains runnable backend and frontend applications, documented modular-monolith boundaries, a Docker Compose local development stack, Keycloak/OIDC authentication, coarse role-based authorization, and the first persisted business feature for maintaining the current farm profile. Farm-scoped membership, offline synchronization, and production deployment automation have not been implemented yet.
 
 IoT integrations are explicitly out of scope.
 
@@ -18,12 +18,12 @@ See [docs/architecture.md](docs/architecture.md) for module ownership and depend
 
 ## Technology stack
 
-- Frontend: React, TypeScript, Vite, Keycloak JS
-- Backend: Java 21, Spring Boot, Maven, Spring Web, Spring Security Resource Server, Bean Validation, Actuator, Springdoc/OpenAPI
+- Frontend: React, TypeScript, Vite, TanStack Query, React Hook Form, Zod, Keycloak JS
+- Backend: Java 21, Spring Boot, Maven, Spring Web, Spring Security Resource Server, Spring Data JPA, Flyway, Bean Validation, Actuator, Springdoc/OpenAPI
 - Local infrastructure: Docker Compose, PostgreSQL 18.4, Keycloak 26.7.0
 - CI: GitHub Actions quality gates for backend, frontend, and infrastructure
 - Architecture: modular monolith and REST APIs
-- Planned infrastructure: Flyway, S3-compatible object storage
+- Planned infrastructure: S3-compatible object storage
 - Planned offline support: PWA, IndexedDB/Dexie, idempotent synchronization
 
 ## Repository structure
@@ -78,13 +78,13 @@ Local ports are:
 | Keycloak health | `http://localhost:9001/health/ready` |
 | PostgreSQL | `localhost:5432` |
 
-The host ports for PostgreSQL and Keycloak can be changed in `.env`. The backend does not connect to PostgreSQL yet. It uses Keycloak's public issuer and JWK metadata only when validating bearer access tokens, so backend startup and automated tests do not require a running identity server.
+The host ports for PostgreSQL and Keycloak can be changed in `.env`. The backend connects to the PoultryFlow PostgreSQL database, runs Flyway migrations, and validates the mapped JPA schema during startup. It uses Keycloak's public issuer and JWK metadata only when validating bearer access tokens, so backend startup requires PostgreSQL but does not require a running identity server.
 
 Keycloak imports the `poultryflow` realm on first startup. Open `http://localhost:8081/admin/`, use the local bootstrap administrator configured in `.env`, select the `poultryflow` realm, and create a local development user. Set a local password, then assign a `poultryflow-api` client role from the user's **Role mapping** tab without adding that user, credential, or assignment to repository files. See [docs/authentication.md](docs/authentication.md) for the exact flow and realm-reset warning.
 
 ## Run the backend
 
-The backend currently starts independently of PostgreSQL and Keycloak:
+Start PostgreSQL first with Docker Compose, then run the backend:
 
 ```bash
 cd backend
@@ -96,6 +96,8 @@ The API starts on `http://localhost:8080`. Verify it with:
 ```bash
 curl http://localhost:8080/actuator/health
 ```
+
+Datasource values default to the local Compose settings and can be overridden with `POULTRYFLOW_DATABASE_URL`, `POULTRYFLOW_DATABASE_USERNAME`, and `POULTRYFLOW_DATABASE_PASSWORD`. Flyway owns schema changes under `backend/src/main/resources/db/migration`; Hibernate validates but never creates or updates the schema.
 
 ## API documentation
 
@@ -116,7 +118,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173`. The page displays the backend health plus **Sign in** and **Forgot password?** actions. Both redirect to Keycloak; PoultryFlow never renders or stores a password. Password recovery requires an SMTP provider configured in Keycloak, which the normal development Compose stack intentionally does not include. After authentication, the page shows the local username and a **Sign out** action that initiates Keycloak logout and returns to the frontend.
+Open `http://localhost:5173`. The page displays the backend health plus **Sign in** and **Forgot password?** actions. Both redirect to Keycloak; PoultryFlow never renders or stores a password. Password recovery requires an SMTP provider configured in Keycloak, which the normal development Compose stack intentionally does not include. After authentication, the page shows the local username and a **Sign out** action. An authenticated `OWNER` can create or update the current farm profile in the online-only settings panel.
 
 ## Stop local infrastructure
 

@@ -33,7 +33,7 @@ select {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto auto;
 }
 
 .masthead {
@@ -64,10 +64,9 @@ select {
 }
 
 .welcome {
-  align-self: center;
   width: min(780px, 88vw);
   margin: 0 auto;
-  padding: 64px 0 112px;
+  padding: 64px 0 72px;
 }
 
 .eyebrow {
@@ -192,13 +191,147 @@ h1 {
   background: #bd3a32;
 }
 
+.farm-profile {
+  width: 100%;
+  padding: 48px max(6vw, calc((100vw - 780px) / 2)) 88px;
+  border-top: 1px solid #d9e1da;
+  background: #ffffff;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.section-label {
+  margin: 0 0 6px;
+  color: #20613f;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.section-heading h2,
+.farm-profile > h2 {
+  margin: 0;
+  color: #17201b;
+  font-size: 1.6rem;
+  line-height: 1.25;
+}
+
+.saved-state,
+.setup-state {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid #b9c8bd;
+  border-radius: 4px;
+  color: #245b3d;
+  background: #edf5ef;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.setup-state {
+  border-color: #d7c18b;
+  color: #6f4b0a;
+  background: #fff8e8;
+}
+
+.farm-profile-form {
+  display: grid;
+  gap: 22px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.form-grid-compact {
+  max-width: 420px;
+}
+
+.form-field {
+  display: grid;
+  gap: 7px;
+}
+
+.form-field label {
+  color: #344139;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.form-field input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 1px solid #aebbb1;
+  border-radius: 5px;
+  color: #17201b;
+  background: #ffffff;
+}
+
+.form-field input:focus-visible {
+  border-color: #20613f;
+  outline: 3px solid #c5dfce;
+  outline-offset: 1px;
+}
+
+.field-error,
+.form-feedback {
+  margin: 0;
+  color: #9e2f29;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.form-actions {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.form-actions button,
+.secondary-button {
+  min-height: 42px;
+  padding: 0 17px;
+  border: 1px solid #174a31;
+  border-radius: 5px;
+  color: #ffffff;
+  background: #20613f;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.form-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.form-feedback.is-success {
+  color: #246a42;
+}
+
+.secondary-button {
+  color: #174a31;
+  background: #ffffff;
+}
+
 @media (max-width: 560px) {
   .masthead {
     min-height: 64px;
   }
 
   .welcome {
-    padding: 48px 0 80px;
+    padding: 48px 0 64px;
   }
 
   h1 {
@@ -216,5 +349,23 @@ h1 {
 
   .authentication-actions {
     flex-wrap: wrap;
+  }
+
+  .farm-profile {
+    padding-top: 36px;
+    padding-bottom: 64px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid-compact {
+    max-width: none;
+  }
+
+  .form-actions {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
