@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.poultryflow.PoultryFlowApplication;
 import com.poultryflow.shared.api.ApiContract;
+import com.poultryflow.testing.PostgreSqlIntegrationTest;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +47,7 @@ import org.springframework.web.context.WebApplicationContext;
         SecurityIntegrationTests.SecurityTestConfiguration.class
 })
 @ExtendWith(OutputCaptureExtension.class)
-class SecurityIntegrationTests {
+class SecurityIntegrationTests extends PostgreSqlIntegrationTest {
 
     private static final String TEST_API_PATH = "/api/v1/test/security";
     private static final String TEST_READ_PATH = "/api/v1/test/security/read";

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.poultryflow.PoultryFlowApplication;
 import com.poultryflow.shared.api.ApiContract;
+import com.poultryflow.testing.PostgreSqlIntegrationTest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,7 +29,7 @@ import org.springframework.web.context.WebApplicationContext;
         PoultryFlowApplication.class,
         ValidationProblemDetailIntegrationTests.ValidationTestConfiguration.class
 })
-class ValidationProblemDetailIntegrationTests {
+class ValidationProblemDetailIntegrationTests extends PostgreSqlIntegrationTest {
 
     @Autowired
     private WebApplicationContext webApplicationContext;
