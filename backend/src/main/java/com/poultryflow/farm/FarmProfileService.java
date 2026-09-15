@@ -3,6 +3,7 @@ package com.poultryflow.farm;
 import com.poultryflow.audit.AuditAction;
 import com.poultryflow.audit.AuditEventAppender;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -44,7 +45,7 @@ public class FarmProfileService {
             throw new AmbiguousFarmProfileException();
         }
 
-        Instant now = Instant.now();
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
         if (current.isEmpty()) {
             Farm farm = repository.saveAndFlush(Farm.create(UUID.randomUUID(), command, now));
             auditEventAppender.append(
