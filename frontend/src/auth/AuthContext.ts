@@ -6,6 +6,7 @@ export type AuthenticationStatus =
 
 export type AuthenticationContextValue = {
   status: AuthenticationStatus
+  subject?: string
   username?: string
   roles: readonly PoultryFlowRole[]
   hasRole: (role: PoultryFlowRole) => boolean

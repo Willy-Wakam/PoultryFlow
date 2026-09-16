@@ -4,7 +4,7 @@ PoultryFlow is a web-based poultry farm management platform for a farm in Camero
 
 ## Project status
 
-PoultryFlow is in its MVP foundation phase. The repository contains runnable backend and frontend applications, documented modular-monolith boundaries, a Docker Compose local development stack, Keycloak/OIDC authentication, coarse role-based authorization, and the first persisted business feature for maintaining the current farm profile. Farm-scoped membership, offline synchronization, and production deployment automation have not been implemented yet.
+PoultryFlow is in its MVP foundation phase. The repository contains runnable backend and frontend applications, documented modular-monolith boundaries, a Docker Compose local development stack, Keycloak/OIDC authentication, farm-scoped membership authorization, and persisted farm-profile and audit foundations. Offline synchronization and production deployment automation have not been implemented yet.
 
 IoT integrations are explicitly out of scope.
 
@@ -106,7 +106,7 @@ With the backend running, access:
 - Generated OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 
-MVP business endpoints use the `/api/v1` prefix and require a Keycloak access token with the `poultryflow-api` audience plus any role required by the operation. See [docs/api-contract.md](docs/api-contract.md) for Bearer authentication, role authorization, versioning, ProblemDetail errors, the `Idempotency-Key` convention, and contract-evolution rules.
+MVP business endpoints use the `/api/v1` prefix and require a Keycloak access token with the `poultryflow-api` audience. Farm operations use the active `FarmMembership` roles stored by PoultryFlow; Keycloak roles provide coarse application claims and the one-time owner bootstrap authority only. See [docs/api-contract.md](docs/api-contract.md) for Bearer authentication, farm authorization, versioning, ProblemDetail errors, the `Idempotency-Key` convention, and contract-evolution rules.
 
 ## Run the frontend
 
@@ -118,7 +118,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173`. The page displays the backend health plus **Sign in** and **Forgot password?** actions. Both redirect to Keycloak; PoultryFlow never renders or stores a password. Password recovery requires an SMTP provider configured in Keycloak, which the normal development Compose stack intentionally does not include. After authentication, the page shows the local username and a **Sign out** action. An authenticated `OWNER` can create or update the current farm profile in the online-only settings panel.
+Open `http://localhost:5173`. The page displays the backend health plus **Sign in** and **Forgot password?** actions. Both redirect to Keycloak; PoultryFlow never renders or stores a password. Password recovery requires an SMTP provider configured in Keycloak, which the normal development Compose stack intentionally does not include. After authentication, the page shows the local username and a **Sign out** action. An active farm `OWNER` can maintain the farm profile and manage invitations, roles, and membership status in online-only panels.
 
 ## Stop local infrastructure
 

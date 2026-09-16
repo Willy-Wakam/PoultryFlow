@@ -6,18 +6,24 @@ import {
   AuthenticationContext,
   type AuthenticationContextValue,
 } from '../../auth/AuthContext'
-import { RequireRole } from '../../auth/RequireRole'
 import type { PoultryFlowRole } from '../../auth/roles'
+import { RequireFarmRole } from '../users/RequireFarmRole'
 import type { FarmProfile } from './farmProfile'
 
 const farmApi = vi.hoisted(() => ({
   getFarmProfile: vi.fn(),
   saveFarmProfile: vi.fn(),
 }))
+const membershipApi = vi.hoisted(() => ({
+  getCurrentFarmAccess: vi.fn(),
+}))
 vi.mock('./farmProfileApi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./farmProfileApi')>()),
   getFarmProfile: farmApi.getFarmProfile,
   saveFarmProfile: farmApi.saveFarmProfile,
+}))
+vi.mock('../users/farmMembershipApi', () => ({
+  getCurrentFarmAccess: membershipApi.getCurrentFarmAccess,
 }))
 
 import { FarmProfilePanel } from './FarmProfilePanel'
@@ -40,11 +46,20 @@ const profile: FarmProfile = {
 }
 
 describe('FarmProfilePanel', () => {
-  beforeEach(() => vi.resetAllMocks())
+  beforeEach(() => {
+    vi.resetAllMocks()
+    membershipApi.getCurrentFarmAccess.mockResolvedValue({
+      farmId: profile.id,
+      membershipId: '84ee9e3e-83c5-43b5-8198-7c34a9369133',
+      roles: ['OWNER'],
+      status: 'ACTIVE',
+      bootstrapAuthority: false,
+    })
+  })
 
-  it('shows the editor to an authenticated owner', async () => {
+  it('shows the editor to a membership owner without a token role', async () => {
     farmApi.getFarmProfile.mockResolvedValue(profile)
-    renderEditor(['OWNER'])
+    renderEditor([])
 
     expect(await screen.findByLabelText('Farm name')).toHaveValue(
       'Ferme Mvog-Betsi',
@@ -53,16 +68,30 @@ describe('FarmProfilePanel', () => {
 
   it.each([
     {
-      roles: ['MANAGER'] as PoultryFlowRole[],
+      tokenRoles: ['OWNER'] as PoultryFlowRole[],
+      membershipRoles: ['MANAGER'] as PoultryFlowRole[],
       status: 'authenticated' as const,
     },
-    { roles: ['OWNER'] as PoultryFlowRole[], status: 'expired' as const },
+    {
+      tokenRoles: ['OWNER'] as PoultryFlowRole[],
+      membershipRoles: ['OWNER'] as PoultryFlowRole[],
+      status: 'expired' as const,
+    },
   ])(
-    'does not expose the editor to $status users with $roles',
-    ({ roles, status }) => {
-      renderEditor(roles, status)
+    'does not expose the editor when membership access does not satisfy the policy',
+    async ({ tokenRoles, membershipRoles, status }) => {
+      membershipApi.getCurrentFarmAccess.mockResolvedValue({
+        farmId: profile.id,
+        membershipId: '84ee9e3e-83c5-43b5-8198-7c34a9369133',
+        roles: membershipRoles,
+        status: 'ACTIVE',
+        bootstrapAuthority: false,
+      })
+      renderEditor(tokenRoles, status)
 
-      expect(screen.queryByText('Farm profile')).not.toBeInTheDocument()
+      await waitFor(() =>
+        expect(screen.queryByText('Farm profile')).not.toBeInTheDocument(),
+      )
       expect(farmApi.getFarmProfile).not.toHaveBeenCalled()
     },
   )
@@ -188,6 +217,7 @@ function renderEditor(
   })
   const authentication: AuthenticationContextValue = {
     status,
+    subject: status === 'authenticated' ? 'test-subject' : undefined,
     roles,
     hasRole: (role) => roles.includes(role),
     hasAnyRole: (required) => required.some((role) => roles.includes(role)),
@@ -203,9 +233,9 @@ function renderEditor(
     </QueryClientProvider>
   )
   render(
-    <RequireRole anyOf={['OWNER']}>
+    <RequireFarmRole anyOf={['OWNER']}>
       <FarmProfilePanel />
-    </RequireRole>,
+    </RequireFarmRole>,
     { wrapper: Wrapper },
   )
 }

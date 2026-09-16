@@ -134,6 +134,11 @@ export const keycloakClient = {
     return typeof username === 'string' ? username : undefined
   },
 
+  subject(): string | undefined {
+    const subject = keycloak.tokenParsed?.sub
+    return typeof subject === 'string' ? subject : undefined
+  },
+
   roles() {
     return extractPoultryFlowRoles(keycloak.tokenParsed)
   },
