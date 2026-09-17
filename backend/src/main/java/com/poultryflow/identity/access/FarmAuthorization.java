@@ -2,6 +2,8 @@ package com.poultryflow.identity.access;
 
 import com.poultryflow.identity.membership.FarmMembershipAccessDeniedException;
 import com.poultryflow.identity.membership.FarmMembershipService;
+import java.util.Arrays;
+import java.util.EnumSet;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
@@ -15,9 +17,19 @@ public class FarmAuthorization {
     }
 
     public boolean hasCurrentFarmRole(Authentication authentication, String role) {
+        return hasAnyCurrentFarmRole(authentication, role);
+    }
+
+    public boolean hasAnyCurrentFarmRole(Authentication authentication, String... roles) {
         try {
-            return membershipService.hasCurrentRole(
-                    authentication, PoultryFlowRole.valueOf(role));
+            EnumSet<PoultryFlowRole> required = Arrays.stream(roles)
+                    .map(PoultryFlowRole::valueOf)
+                    .collect(
+                            () -> EnumSet.noneOf(PoultryFlowRole.class),
+                            EnumSet::add,
+                            EnumSet::addAll);
+            return !required.isEmpty()
+                    && membershipService.hasAnyCurrentRole(authentication, required);
         } catch (FarmMembershipAccessDeniedException exception) {
             return false;
         }

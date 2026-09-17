@@ -6,3 +6,4 @@ Implemented feature modules:
 
 - `farm` contains the online-only current farm profile editor.
 - `users` contains current farm access, membership-aware guards, and online-only user administration.
+- `locations` contains online-only location administration for owners and managers; stable IDs remain when locations become inactive.

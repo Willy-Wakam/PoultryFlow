@@ -4,7 +4,7 @@ PoultryFlow is a web-based poultry farm management platform for a farm in Camero
 
 ## Project status
 
-PoultryFlow is in its MVP foundation phase. The repository contains runnable backend and frontend applications, documented modular-monolith boundaries, a Docker Compose local development stack, Keycloak/OIDC authentication, farm-scoped membership authorization, and persisted farm-profile and audit foundations. Offline synchronization and production deployment automation have not been implemented yet.
+PoultryFlow is in its MVP foundation phase. The repository contains runnable backend and frontend applications, documented modular-monolith boundaries, a Docker Compose local development stack, Keycloak/OIDC authentication, farm-scoped membership authorization, persisted farm profiles and locations, and an append-only audit foundation. Offline synchronization and production deployment automation have not been implemented yet.
 
 IoT integrations are explicitly out of scope.
 
@@ -118,7 +118,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173`. The page displays the backend health plus **Sign in** and **Forgot password?** actions. Both redirect to Keycloak; PoultryFlow never renders or stores a password. Password recovery requires an SMTP provider configured in Keycloak, which the normal development Compose stack intentionally does not include. After authentication, the page shows the local username and a **Sign out** action. An active farm `OWNER` can maintain the farm profile and manage invitations, roles, and membership status in online-only panels.
+Open `http://localhost:5173`. The page displays the backend health plus **Sign in** and **Forgot password?** actions. Both redirect to Keycloak; PoultryFlow never renders or stores a password. Password recovery requires an SMTP provider configured in Keycloak, which the normal development Compose stack intentionally does not include. After authentication, the page shows the local username and a **Sign out** action. An active farm `OWNER` can maintain the farm profile and manage invitations, roles, and membership status. Active `OWNER` and `MANAGER` members can configure houses and other farm locations. These administration panels are online-only.
 
 ## Stop local infrastructure
 

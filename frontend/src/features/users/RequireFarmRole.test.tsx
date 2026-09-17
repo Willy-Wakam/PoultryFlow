@@ -30,6 +30,17 @@ describe('RequireFarmRole', () => {
     expect(screen.queryByText('Access denied')).not.toBeInTheDocument()
   })
 
+  it.each(['OWNER', 'MANAGER'] as const)(
+    'allows an active %s membership through a multi-role location guard',
+    async (role) => {
+      membershipApi.getCurrentFarmAccess.mockResolvedValue(access([role]))
+
+      renderGuard([], 'authenticated', ['OWNER', 'MANAGER'])
+
+      expect(await screen.findByText('Farm content')).toBeVisible()
+    },
+  )
+
   it('does not let a global token owner override farm membership roles', async () => {
     membershipApi.getCurrentFarmAccess.mockResolvedValue(access(['MANAGER']))
 
@@ -61,6 +72,7 @@ describe('RequireFarmRole', () => {
 function renderGuard(
   tokenRoles: readonly PoultryFlowRole[],
   status: AuthenticationContextValue['status'],
+  requiredRoles: readonly PoultryFlowRole[] = ['OWNER'],
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -84,7 +96,7 @@ function renderGuard(
   )
 
   render(
-    <RequireFarmRole anyOf={['OWNER']} fallback={<p>Access denied</p>}>
+    <RequireFarmRole anyOf={requiredRoles} fallback={<p>Access denied</p>}>
       <p>Farm content</p>
     </RequireFarmRole>,
     { wrapper: Wrapper },
