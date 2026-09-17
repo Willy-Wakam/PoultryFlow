@@ -101,6 +101,16 @@ class OpenApiContractIntegrationTests extends PostgreSqlIntegrationTest {
                         .exists())
                 .andExpect(jsonPath(
                                 "$.paths['/api/v1/farms/current/memberships/{membershipId}/status'].put")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/farms/current/locations'].get")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/farms/current/locations'].post")
+                        .exists())
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/farms/current/locations/{locationId}'].put")
+                        .exists())
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/farms/current/locations/{locationId}/status'].put")
                         .exists());
     }
 

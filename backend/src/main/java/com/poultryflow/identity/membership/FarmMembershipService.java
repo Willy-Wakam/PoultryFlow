@@ -54,6 +54,14 @@ public class FarmMembershipService {
     }
 
     @Transactional
+    public boolean hasAnyCurrentRole(
+            Authentication authentication,
+            Set<PoultryFlowRole> roles) {
+        return resolveCurrentAccess(actor(authentication)).roles().stream()
+                .anyMatch(roles::contains);
+    }
+
+    @Transactional
     public boolean hasCurrentAccess(Authentication authentication) {
         resolveCurrentAccess(actor(authentication));
         return true;

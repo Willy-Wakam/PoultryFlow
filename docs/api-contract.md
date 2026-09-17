@@ -59,6 +59,20 @@ An identical `PUT` is a no-op: it preserves `updatedAt` and does not append anot
 
 Membership writes return the safe codes `INVALID_MEMBERSHIP_ROLES`, `FARM_MEMBERSHIP_ALREADY_EXISTS`, `FARM_MEMBERSHIP_NOT_FOUND`, `LAST_ACTIVE_OWNER_REQUIRED`, `BOOTSTRAP_EMAIL_REQUIRED`, or `CONCURRENT_MODIFICATION` when applicable. Repeating an unchanged role or status update is a no-op and does not append another audit event. There is no destructive membership deletion endpoint.
 
+## Farm locations
+
+| Method | Path | Role | Behavior |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/farms/current/locations` | Active member | Lists active locations for selectors and operational use |
+| `GET` | `/api/v1/farms/current/locations?includeInactive=true` | Farm `OWNER` or `MANAGER` | Lists active and inactive locations for administration |
+| `POST` | `/api/v1/farms/current/locations` | Farm `OWNER` or `MANAGER` | Creates an active `HOUSE`, `PEN`, `STORAGE`, or `OTHER` location |
+| `PUT` | `/api/v1/farms/current/locations/{locationId}` | Farm `OWNER` or `MANAGER` | Updates name and type using the supplied optimistic-lock version |
+| `PUT` | `/api/v1/farms/current/locations/{locationId}/status` | Farm `OWNER` or `MANAGER` | Activates or deactivates a location using the supplied optimistic-lock version |
+
+Location names are trimmed and unique case-insensitively within one farm. Responses include a stable location UUID, farm UUID, status, optimistic-lock version, and UTC timestamps. Inactive locations remain persisted, are excluded from the default list, and cannot pass the backend active-location boundary used by future transaction modules. Identical updates are no-ops, there is no hard-delete endpoint, and administration is online-only.
+
+Location operations use `FARM_LOCATION_NOT_FOUND`, `FARM_LOCATION_NAME_ALREADY_EXISTS`, and `CONCURRENT_MODIFICATION` as safe module-specific error codes where applicable.
+
 ## Versioning
 
 The URI segment is the major API version. Additive, backward-compatible fields and operations may be introduced within v1. Breaking changes must be documented before implementation and normally require a new major prefix such as `/api/v2`.
@@ -90,7 +104,7 @@ RFC 9457 permits its standard members to be omitted or defaulted, so the reusabl
 
 An unauthenticated request to `/api/v1/**` receives HTTP 401, `application/problem+json`, `WWW-Authenticate: Bearer`, and the stable code `AUTHENTICATION_REQUIRED`. The response uses a fixed client-safe detail and never exposes the underlying Spring Security or OIDC exception.
 
-An authenticated request that fails a role policy receives HTTP 403, `application/problem+json`, and the stable code `AUTHORIZATION_DENIED`. Authentication and authorization failures remain distinct, and neither response exposes token claims or framework exceptions. The farm profile adds `FARM_PROFILE_NOT_CONFIGURED`, `FARM_PROFILE_AMBIGUOUS`, and `CONCURRENT_MODIFICATION` as module-specific safe codes.
+An authenticated request that fails a role policy receives HTTP 403, `application/problem+json`, and the stable code `AUTHORIZATION_DENIED`. Authentication and authorization failures remain distinct, and neither response exposes token claims or framework exceptions. Farm operations add `FARM_PROFILE_NOT_CONFIGURED`, `FARM_PROFILE_AMBIGUOUS`, `FARM_LOCATION_NOT_FOUND`, `FARM_LOCATION_NAME_ALREADY_EXISTS`, and `CONCURRENT_MODIFICATION` as module-specific safe codes.
 
 ## Idempotency
 
