@@ -45,7 +45,7 @@ The imported realm defines:
 - `OWNER`, `MANAGER`, `STAFF`, `ACCOUNTANT`, and `VIEWER` as non-composite `poultryflow-api` client roles emitted through Keycloak's standard client-role claim when assigned.
 - Keycloak's Reset credentials flow for password recovery.
 
-It does not contain users, passwords, role assignments, client secrets, or production configuration.
+It does not contain users, passwords, role assignments, client secrets, or production configuration. Farm invitations are application records only; creating the corresponding Keycloak identity and delivering an invitation are deferred and require no Keycloak Admin API credentials in this story.
 
 ## Credential recovery email
 

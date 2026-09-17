@@ -32,7 +32,7 @@ These endpoints remain public:
 - `/v3/api-docs` and `/v3/api-docs/**`
 - `/swagger-ui.html` and `/swagger-ui/**`
 
-Role checks belong at controller or use-case boundaries. Read-like operations may allow `VIEWER`, `STAFF`, `MANAGER`, and `OWNER`, while operational mutations exclude `VIEWER`. Each business module must define its actual policy when its endpoints are implemented. `ACCOUNTANT` is part of the role vocabulary, but finance permissions are deferred to finance stories. Future farm-scoped operations must also enforce `FarmMembership`.
+Role checks belong at controller or use-case boundaries. Farm-scoped operations enforce active `FarmMembership` roles rather than trusting the corresponding Keycloak client role. Global `ROLE_OWNER` is limited to initial owner bootstrap while the current farm has no memberships. `ACCOUNTANT` is part of the role vocabulary, but finance permissions are deferred to finance stories.
 
 ## Farm profile
 
@@ -40,12 +40,24 @@ The first business resource is the current farm profile:
 
 | Method | Path | Role | Behavior |
 | --- | --- | --- | --- |
-| `GET` | `/api/v1/farms/current` | `OWNER` | Returns the current profile or `404` with `FARM_PROFILE_NOT_CONFIGURED` |
-| `PUT` | `/api/v1/farms/current` | `OWNER` | Creates the profile when absent or updates the same farm when present |
+| `GET` | `/api/v1/farms/current` | Farm `OWNER` | Returns the current profile or `404` with `FARM_PROFILE_NOT_CONFIGURED` |
+| `PUT` | `/api/v1/farms/current` | Farm `OWNER` | Creates the profile when absent or updates the same farm when present |
 
 The request contains `name`, optional `contactEmail` and `contactPhone`, `timezone`, and optional `countryCode` and `currencyCode`. Missing country and currency values default to `CM` and `XAF`; stored codes are uppercase. Timezones, countries, and currencies must be real IANA, ISO-3166 alpha-2, and ISO-4217 values. Responses add the farm UUID, optimistic-lock version, and UTC creation/update timestamps.
 
 An identical `PUT` is a no-op: it preserves `updatedAt` and does not append another audit event. The endpoint returns safe field-oriented `400` validation problems, `401` and `403` security problems, `409` for concurrent or ambiguous resolution, and does not expose persistence entities. There is intentionally no farm list or delete operation in this MVP step.
+
+## Farm memberships
+
+| Method | Path | Role | Behavior |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/farms/current/membership` | Active member | Returns the caller's current farm access and roles; a verified matching invitation is claimed on first access |
+| `GET` | `/api/v1/farms/current/memberships` | Farm `OWNER` | Lists invited, active, and disabled memberships |
+| `POST` | `/api/v1/farms/current/memberships/invitations` | Farm `OWNER` | Records a normalized email and initial roles as an invitation |
+| `PUT` | `/api/v1/farms/current/memberships/{membershipId}/roles` | Farm `OWNER` | Replaces the membership's farm roles |
+| `PUT` | `/api/v1/farms/current/memberships/{membershipId}/status` | Farm `OWNER` | Soft-disables or re-enables a membership |
+
+Membership writes return the safe codes `INVALID_MEMBERSHIP_ROLES`, `FARM_MEMBERSHIP_ALREADY_EXISTS`, `FARM_MEMBERSHIP_NOT_FOUND`, `LAST_ACTIVE_OWNER_REQUIRED`, `BOOTSTRAP_EMAIL_REQUIRED`, or `CONCURRENT_MODIFICATION` when applicable. Repeating an unchanged role or status update is a no-op and does not append another audit event. There is no destructive membership deletion endpoint.
 
 ## Versioning
 

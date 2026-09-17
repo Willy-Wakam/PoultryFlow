@@ -87,7 +87,21 @@ class OpenApiContractIntegrationTests extends PostgreSqlIntegrationTest {
                         .exists())
                 .andExpect(jsonPath(
                                 "$.paths['/api/v1/farms/current'].put.security[0].BearerAuth")
-                        .isArray());
+                        .isArray())
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/farms/current/membership'].get.security[0].BearerAuth")
+                        .isArray())
+                .andExpect(jsonPath("$.paths['/api/v1/farms/current/memberships'].get")
+                        .exists())
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/farms/current/memberships/invitations'].post")
+                        .exists())
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/farms/current/memberships/{membershipId}/roles'].put")
+                        .exists())
+                .andExpect(jsonPath(
+                                "$.paths['/api/v1/farms/current/memberships/{membershipId}/status'].put")
+                        .exists());
     }
 
     @TestConfiguration(proxyBeanMethods = false)

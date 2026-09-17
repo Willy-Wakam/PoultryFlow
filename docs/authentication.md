@@ -29,7 +29,7 @@ The browser client and API audience are separate Keycloak clients:
 - The `poultryflow-api-audience` protocol mapper adds `poultryflow-api` only to access tokens issued through `poultryflow-web`.
 - `OWNER`, `MANAGER`, `STAFF`, `ACCOUNTANT`, and `VIEWER` are client roles on `poultryflow-api`, not realm roles.
 
-These roles are coarse application authorization roles. They do not replace the future `FarmMembership` model: when memberships exist, access to a target farm must satisfy both the application policy and that user's membership for the farm.
+These roles are coarse application authorization claims. PoultryFlow's `FarmMembership` record is authoritative for farm access. Global `ROLE_OWNER` is recognized only as a safe bootstrap authority while the current farm has zero memberships; after that point, stored membership roles and status override coarse token roles.
 
 ## Browser flow
 
@@ -100,7 +100,7 @@ Keycloak places assigned API client roles in the standard access-token claim:
 
 The backend maps only known values at `resource_access.poultryflow-api.roles` to `ROLE_OWNER`, `ROLE_MANAGER`, `ROLE_STAFF`, `ROLE_ACCOUNTANT`, and `ROLE_VIEWER`. Realm roles, roles for other clients, malformed claims, and unknown names are ignored. Role checks use method security at controller or use-case boundaries; the central HTTP configuration remains a fail-closed authentication boundary.
 
-The frontend provides `hasRole`, `hasAnyRole`, and `RequireRole` for role-aware navigation and rendering. These checks improve the user experience only. Backend authorization is authoritative.
+The frontend provides `hasRole`, `hasAnyRole`, and `RequireRole` for coarse role-aware rendering. Farm features use `RequireFarmRole`, backed by the current membership endpoint, so they do not treat token roles as farm permission. These checks improve the user experience only. Backend authorization is authoritative.
 
 ## URL boundaries
 
@@ -155,14 +155,18 @@ Authentication and credential recovery require network access to Keycloak. Recov
 
 While the page remains open, PoultryFlow keeps a non-secret authorization snapshot containing only the authenticated subject and allowlisted application roles. Successful authentication or token refresh replaces it. Session expiry retains it so future offline features can evaluate previously authorized data, while normal `RequireRole` guards continue to require an authenticated online session. Logout, a new sign-in attempt, and a user switch clear it. The snapshot is never written to browser storage and does not grant backend access. Future offline storage must bind cached data to the authorized subject and snapshot; it must never infer permission from cached UI state alone.
 
-## Farm profile authorization
+## Farm membership authorization
 
-Both current farm profile operations require `OWNER` through backend method security. The React `RequireRole` guard hides the editor for unauthenticated, expired, or non-owner sessions, but this is only a usability boundary. Spring Security remains authoritative.
+`FarmMembership` stores a normalized email, nullable Keycloak subject, one or more farm roles, and `INVITED`, `ACTIVE`, or `DISABLED` status. On the first membership-management mutation for an empty farm, an authenticated global `OWNER` is recorded as its active owner. Later authorization is subject-based and uses only active membership roles; token roles cannot override a stored role or disabled status.
 
-Until `FarmMembership` is implemented, the backend resolves one current farm and fails closed if multiple farm rows make that resolution ambiguous. This is a temporary MVP rule, not authorization for arbitrary farm data.
+An owner records an invitation as a pending membership. On the invited user's first authenticated access, PoultryFlow binds it to the JWT `sub` only when the token email matches case-insensitively and `email_verified` is true. Once claimed, email changes do not change identity. A subject already attached to a disabled membership is denied before invitation matching and therefore cannot bypass disablement by claiming another invitation.
+
+Farm profile operations require active membership `OWNER`, except for the empty-membership bootstrap state. Membership listing, invitations, role changes, and disable/re-enable operations are owner-only. Changes are serialized on the current farm, and the last active owner cannot be demoted or disabled. The React `RequireFarmRole` guard mirrors this for usability, while backend method security remains authoritative.
+
+Membership administration is online-only. A membership 403 remains an authorization result and does not expire the authenticated browser session.
 
 ## Deferred security work
 
-- A future farm-management story must replace single-farm resolution and constrain farm-scoped access with `FarmMembership`; coarse roles alone are insufficient.
+- Creating Keycloak users, provisioning their credentials, and delivering invitation email are deferred. This application has no Keycloak Admin API service account, SMTP integration, or password handling.
 - The audit epic owns durable storage and querying of authorization-denied events.
 - Deployment-specific Keycloak session timeout values remain operational configuration; this story does not change the committed realm defaults.

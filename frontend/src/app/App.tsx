@@ -1,7 +1,8 @@
 import { AuthenticationPanel } from '../auth/AuthenticationPanel'
-import { RequireRole } from '../auth/RequireRole'
 import { BackendStatus } from '../components/BackendStatus'
 import { FarmProfilePanel } from '../features/farm/FarmProfilePanel'
+import { RequireFarmRole } from '../features/users/RequireFarmRole'
+import { UserAdministrationPanel } from '../features/users/UserAdministrationPanel'
 
 export function App() {
   return (
@@ -26,9 +27,10 @@ export function App() {
         </div>
       </section>
 
-      <RequireRole anyOf={['OWNER']}>
+      <RequireFarmRole anyOf={['OWNER']}>
         <FarmProfilePanel />
-      </RequireRole>
+        <UserAdministrationPanel />
+      </RequireFarmRole>
     </main>
   )
 }

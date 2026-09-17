@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping(ApiContract.BUSINESS_API_BASE_PATH + "/farms/current")
-@PreAuthorize("hasRole('OWNER')")
+@PreAuthorize("@farmAuthorization.hasCurrentFarmRole(authentication, 'OWNER')")
 public class FarmProfileController {
 
     private final FarmProfileService service;

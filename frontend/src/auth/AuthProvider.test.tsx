@@ -8,6 +8,7 @@ import { useAuth } from './useAuth'
 const keycloakClient = vi.hoisted(() => ({
   initialize: vi.fn(),
   isAuthenticated: vi.fn(),
+  subject: vi.fn(),
   username: vi.fn(),
   roles: vi.fn(),
   login: vi.fn(),
@@ -41,6 +42,7 @@ describe('PoultryFlow authentication', () => {
     vi.resetAllMocks()
     keycloakClient.initialize.mockResolvedValue(false)
     keycloakClient.isAuthenticated.mockReturnValue(false)
+    keycloakClient.subject.mockReturnValue(undefined)
     keycloakClient.roles.mockReturnValue([])
     keycloakClient.login.mockResolvedValue(undefined)
     keycloakClient.recoverCredentials.mockResolvedValue(undefined)
@@ -80,6 +82,7 @@ describe('PoultryFlow authentication', () => {
   it('shows authenticated identity and delegates Sign out to Keycloak', async () => {
     keycloakClient.initialize.mockResolvedValue(true)
     keycloakClient.isAuthenticated.mockReturnValue(true)
+    keycloakClient.subject.mockReturnValue('local-farmer-subject')
     keycloakClient.username.mockReturnValue('local-farmer')
 
     render(<AuthenticationPanel />, { wrapper: AuthenticationUnderTest })

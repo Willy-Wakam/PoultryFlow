@@ -8,7 +8,7 @@ import { keycloakClient } from './keycloak'
 
 type AuthenticationState = Pick<
   AuthenticationContextValue,
-  'status' | 'username' | 'roles'
+  'status' | 'subject' | 'username' | 'roles'
 >
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -29,6 +29,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         keycloakClient.synchronizeAuthorizationSnapshot()
         setState({
           status: 'authenticated',
+          subject: keycloakClient.subject(),
           username: keycloakClient.username(),
           roles: keycloakClient.roles(),
         })

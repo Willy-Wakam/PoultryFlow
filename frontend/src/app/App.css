@@ -325,6 +325,166 @@ h1 {
   background: #ffffff;
 }
 
+.user-administration {
+  width: 100%;
+  padding: 48px max(6vw, calc((100vw - 980px) / 2)) 88px;
+  border-top: 1px solid #d9e1da;
+  background: #f7f8fa;
+}
+
+.user-administration h2 {
+  margin: 0;
+  color: #17201b;
+  font-size: 1.6rem;
+  line-height: 1.25;
+}
+
+.invitation-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(360px, 1.5fr);
+  gap: 20px 28px;
+  align-items: start;
+  padding-bottom: 34px;
+  border-bottom: 1px solid #d9e1da;
+}
+
+.invitation-form .form-actions,
+.invitation-form > .field-error {
+  grid-column: 1 / -1;
+}
+
+.role-selector {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.role-selector legend {
+  margin-bottom: 8px;
+  color: #344139;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.role-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-height: 44px;
+  align-items: center;
+}
+
+.role-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #344139;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.role-options input {
+  width: 17px;
+  height: 17px;
+  accent-color: #20613f;
+}
+
+.membership-list {
+  margin-top: 28px;
+  border-bottom: 1px solid #d9e1da;
+}
+
+.membership-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(360px, 1.5fr) auto;
+  gap: 20px;
+  align-items: start;
+  padding: 24px 0;
+  border-top: 1px solid #d9e1da;
+}
+
+.membership-identity {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.membership-identity strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.membership-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid #aeb9c9;
+  border-radius: 4px;
+  color: #324861;
+  background: #edf3fa;
+  font-size: 0.76rem;
+  font-weight: 750;
+  text-transform: capitalize;
+}
+
+.membership-status.status-invited {
+  border-color: #d7c18b;
+  color: #6f4b0a;
+  background: #fff8e8;
+}
+
+.membership-status.status-disabled {
+  border-color: #d5a7a3;
+  color: #812d28;
+  background: #fff0ef;
+}
+
+.membership-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 190px;
+}
+
+.membership-actions button {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.membership-actions button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.danger-button {
+  border: 1px solid #9e2f29;
+  color: #8b2924;
+  background: #ffffff;
+}
+
+.membership-actions .form-feedback {
+  flex-basis: 100%;
+  max-width: 280px;
+  text-align: right;
+}
+
+.membership-load-error,
+.empty-state {
+  margin-top: 28px;
+}
+
+.membership-load-error p,
+.empty-state {
+  color: #4f5e54;
+}
+
 @media (max-width: 560px) {
   .masthead {
     min-height: 64px;
@@ -354,6 +514,25 @@ h1 {
   .farm-profile {
     padding-top: 36px;
     padding-bottom: 64px;
+  }
+
+  .user-administration {
+    padding-top: 36px;
+    padding-bottom: 64px;
+  }
+
+  .invitation-form,
+  .membership-row {
+    grid-template-columns: 1fr;
+  }
+
+  .membership-actions {
+    justify-content: flex-start;
+  }
+
+  .membership-actions .form-feedback {
+    max-width: none;
+    text-align: left;
   }
 
   .form-grid {
